@@ -7,14 +7,14 @@ type Item struct {
 	ID string
 
 	// Name is the item's name. Must not ever be empty.
-	Name string
+	Name string `validate:"required,max=80,alphanumspace"`
 
 	// Desc is the item description. May be empty.
-	Desc string
+	Desc string `validate:"max=65536,alphanumspace"`
 
 	// Stock how many units remains
-	Stock int
+	Stock int `validate:"gte=0"`
 
 	// Attrs contains custom per-item attributes.
-	Attrs map[string]any
+	Attrs map[string]any `validate:"dive,keys,required,max=80,alphanumspace,endKeys"`
 }
