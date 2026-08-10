@@ -19,8 +19,8 @@ const (
 	StatusError   status = "error"
 )
 
-// response is a JSend response,
-type response struct {
+// Response is a JSend response,
+type Response struct {
 	// Required always.
 	Status string `json:"status"`
 
@@ -37,7 +37,7 @@ type response struct {
 // WriteSuccess writes a success response to w. If an error occurs encoding the response
 // it will be returned.
 func WriteSuccess(w http.ResponseWriter, data any) error {
-	resp := response{
+	resp := Response{
 		Status: string(StatusSuccess),
 		Data:   &data,
 	}
@@ -48,7 +48,7 @@ func WriteSuccess(w http.ResponseWriter, data any) error {
 // WriteFail writes a fail response to w. If an error occurs encoding the response it will
 // be returned.
 func WriteFail(w http.ResponseWriter, data any) error {
-	resp := response{
+	resp := Response{
 		Status: string(StatusFail),
 		Data:   &data,
 	}
@@ -72,7 +72,7 @@ func WriteFail(w http.ResponseWriter, data any) error {
 //	  }
 //	 }
 func WriteError(w http.ResponseWriter, message string, code Code, data *any) error {
-	resp := response{
+	resp := Response{
 		Status:  string(StatusError),
 		Data:    data,
 		Code:    (*int)(code),
@@ -87,7 +87,7 @@ func NewCode(c int) Code {
 	return Code(&c)
 }
 
-func writeResp(w http.ResponseWriter, resp *response) error {
+func writeResp(w http.ResponseWriter, resp *Response) error {
 	ContentJSON(w)
 
 	err := json.NewEncoder(w).Encode(resp)
