@@ -34,6 +34,7 @@ func newSqliteRepo(t *testing.T) (*repository.Repository, gorm.Interface[reposit
 func TestRepositorySqliteShouldCreateUser(t *testing.T) {
 	t.Parallel()
 
+	//nolint:gosec // fake credentials.
 	data := repository.SignUpUserData{
 		Name:         "my user name",
 		Email:        "my-user@email.com",
