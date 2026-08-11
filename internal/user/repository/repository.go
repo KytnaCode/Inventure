@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/go-playground/validator/v10"
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
@@ -38,6 +39,7 @@ func New(db gorm.Interface[User], v *validator.Validate) *Repository {
 // SignUpUser creates a new user with password based authentication.
 func (r *Repository) SignUpUser(ctx context.Context, data *SignUpUserData) (id string, err error) {
 	m := &User{
+		ID:           datatypes.NewUUIDv4(),
 		Name:         data.Name,
 		Email:        data.Email,
 		PasswordHash: &data.PasswordHash,
