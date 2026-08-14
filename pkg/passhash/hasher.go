@@ -78,8 +78,6 @@ func Verify(phcString string, clearTextPassword []byte) (ok bool, err error) {
 		return false, err
 	}
 
-	fmt.Println(conf)
-
 	computedHash := hash(clearTextPassword, salt, conf)
 
 	return subtle.ConstantTimeCompare(rawHash, computedHash) == 1, nil
@@ -113,8 +111,6 @@ func scanHash(phcString string) (hash, salt []byte, conf *config, err error) {
 	parts := strings.Split(phcString, "$")
 
 	components := parts[1:]
-
-	fmt.Println(components)
 
 	if len(components) != componentsNum {
 		return nil, nil, nil, fmt.Errorf(
