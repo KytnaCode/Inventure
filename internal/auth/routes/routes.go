@@ -14,7 +14,6 @@ import (
 	"github.com/kytnacode/inventure/pkg/api"
 	"github.com/kytnacode/inventure/pkg/logging"
 	"github.com/kytnacode/inventure/pkg/passhash"
-	"github.com/kytnacode/inventure/pkg/validation"
 )
 
 // Routes handle password based authentication routes.
@@ -61,7 +60,7 @@ func (ro *Routes) SignUp(w http.ResponseWriter, r *http.Request) {
 		PasswordHash: &hash,
 	}
 
-	ok = validateModel(w, r, ro.v, model)
+	ok = api.ValidateModel(r.Context(), w, ro.v, model)
 	if !ok {
 		return
 	}
@@ -91,7 +90,7 @@ func (ro *Routes) SignIn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ok = validateModel(w, r, ro.v, data)
+	ok = api.ValidateModel(r.Context(), w, ro.v, data)
 	if !ok {
 		return
 	}
@@ -134,42 +133,6 @@ func decodeData(w http.ResponseWriter, r *http.Request, data any) (ok bool) {
 		})
 		if err != nil {
 			logger.Error("could write warn response", logging.Error(err))
-		}
-
-		return false
-	}
-
-	return true
-}
-
-func validateModel[M any](
-	w http.ResponseWriter,
-	r *http.Request,
-	v *validator.Validate,
-	m M,
-) (ok bool) {
-	logger := logging.FromCtx(r.Context())
-
-	err := v.Struct(m)
-	if err != nil {
-		logger.Warn("invalid model or dto", logging.Error(err))
-
-		if validationErrors, ok := errors.AsType[validator.ValidationErrors](err); ok {
-			w.WriteHeader(http.StatusBadRequest)
-
-			err = api.WriteFail(w, validation.MapFromErrors(validationErrors))
-			if err != nil {
-				logger.Error("could not write fail response", logging.Error(err))
-			}
-
-			return false
-		}
-
-		w.WriteHeader(http.StatusInternalServerError)
-
-		err = api.WriteError(w, "internal server error", nil, nil)
-		if err != nil {
-			logger.Error("could not write error response", logging.Error(err))
 		}
 
 		return false
