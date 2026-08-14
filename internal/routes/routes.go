@@ -11,8 +11,9 @@ import (
 
 // Config is the main API's configuration.
 type Config struct {
-	LoggerMiddleware func(next http.Handler) http.Handler
-	IPMiddleware     func(next http.Handler) http.Handler
+	LoggerMiddleware         func(next http.Handler) http.Handler
+	IPMiddleware             func(next http.Handler) http.Handler
+	EmbeddedLoggerMiddelware func(next http.Handler) http.Handler
 }
 
 // HealthCheck is a health check handler.
@@ -26,7 +27,7 @@ func HealthCheck(w http.ResponseWriter, r *http.Request) {
 }
 
 func baseMiddlewares(conf *Config) []func(next http.Handler) http.Handler {
-	middlewares := make([]func(next http.Handler) http.Handler, 0, 5)
+	middlewares := make([]func(next http.Handler) http.Handler, 0, 6)
 
 	middlewares = append(middlewares, middleware.Recoverer)
 	middlewares = append(middlewares, middleware.RequestID)
@@ -38,6 +39,10 @@ func baseMiddlewares(conf *Config) []func(next http.Handler) http.Handler {
 
 	if conf.LoggerMiddleware != nil {
 		middlewares = append(middlewares, conf.LoggerMiddleware)
+	}
+
+	if conf.EmbeddedLoggerMiddelware != nil {
+		middlewares = append(middlewares, conf.EmbeddedLoggerMiddelware)
 	}
 
 	return middlewares
