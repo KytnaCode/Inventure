@@ -4,13 +4,13 @@ package routes
 // For validation rules see [user/repository.User].
 type SignUpData struct {
 	// Name is user's display name.
-	Name string `json:"name"`
+	Name string `json:"name" validate:"required"`
 
 	// Email is user's email.
-	Email string `json:"email"`
+	Email string `json:"email" validate:"required,email"`
 
 	// Password is user's password in clear text.
-	Password string `json:"password"`
+	Password string `json:"password" validate:"required"`
 }
 
 // SignInData is the necessary data for a user to sign in with password-based authentication.
