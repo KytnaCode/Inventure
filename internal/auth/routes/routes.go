@@ -10,6 +10,7 @@ import (
 	"github.com/go-playground/validator/v10"
 	"github.com/kytnacode/inventure/internal/auth/session"
 	userrepository "github.com/kytnacode/inventure/internal/user/repository"
+	"github.com/kytnacode/inventure/internal/web"
 	"github.com/kytnacode/inventure/pkg/api"
 	"github.com/kytnacode/inventure/pkg/logging"
 	"github.com/kytnacode/inventure/pkg/passhash"
@@ -45,7 +46,9 @@ func (ro *Routes) SignUp(w http.ResponseWriter, r *http.Request) {
 
 	r = withLogger(r, "auth/routes/Routes.SignUp")
 
-	data, ok := decodeSignUpData(w, r)
+	data := new(SignUpData)
+
+	ok := decodeData(w, r, data)
 	if !ok {
 		return
 	}
@@ -75,6 +78,39 @@ func (ro *Routes) SignUp(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, ro.redirectURL, http.StatusTemporaryRedirect)
 }
 
+// SignIn is the handler for password-based sign in.
+func (ro *Routes) SignIn(w http.ResponseWriter, r *http.Request) {
+	api.AcceptJSON(w)
+
+	r = withLogger(r, "auth/routes/Routes.SignIn")
+
+	data := new(SignInData)
+
+	ok := decodeData(w, r, data)
+	if !ok {
+		return
+	}
+
+	ok = validateModel(w, r, ro.v, data)
+	if !ok {
+		return
+	}
+
+	id := signInUser(r.Context(), w, ro.userRepo, &userrepository.SignInUserData{
+		Email:         data.Email,
+		ClearPassword: data.Password,
+	})
+	if id == "" {
+		return
+	}
+
+	ro.sessionManager.Put(r.Context(), session.KeySessionData, &session.Session{
+		ID: id,
+	})
+
+	http.Redirect(w, r, ro.redirectURL, http.StatusTemporaryRedirect)
+}
+
 func withLogger(r *http.Request, handler string) *http.Request {
 	logger := logging.FromCtx(r.Context())
 
@@ -85,13 +121,11 @@ func withLogger(r *http.Request, handler string) *http.Request {
 	return r.WithContext(ctx)
 }
 
-func decodeSignUpData(w http.ResponseWriter, r *http.Request) (data *SignUpData, ok bool) {
+func decodeData(w http.ResponseWriter, r *http.Request, data any) (ok bool) {
 	logger := logging.FromCtx(r.Context())
 
-	data = new(SignUpData)
-
 	if err := json.NewDecoder(r.Body).Decode(data); err != nil {
-		logger.Warn("could not decode sign up data", logging.Error(err))
+		logger.Warn("could not decode request body", logging.Error(err))
 
 		w.WriteHeader(http.StatusBadRequest)
 
@@ -102,23 +136,23 @@ func decodeSignUpData(w http.ResponseWriter, r *http.Request) (data *SignUpData,
 			logger.Error("could write warn response", logging.Error(err))
 		}
 
-		return nil, false
+		return false
 	}
 
-	return data, true
+	return true
 }
 
-func validateModel(
+func validateModel[M any](
 	w http.ResponseWriter,
 	r *http.Request,
 	v *validator.Validate,
-	m *userrepository.User,
+	m M,
 ) (ok bool) {
 	logger := logging.FromCtx(r.Context())
 
 	err := v.Struct(m)
 	if err != nil {
-		logger.Warn("invalid user model", logging.Error(err))
+		logger.Warn("invalid model or dto", logging.Error(err))
 
 		if validationErrors, ok := errors.AsType[validator.ValidationErrors](err); ok {
 			w.WriteHeader(http.StatusBadRequest)
@@ -172,4 +206,78 @@ func signUpUser(
 	}
 
 	return id, true
+}
+
+func signInUser(
+	ctx context.Context,
+	w http.ResponseWriter,
+	repo *userrepository.Repository,
+	data *userrepository.SignInUserData,
+) (id string) {
+	logger := logging.FromCtx(ctx)
+
+	id, err := repo.SignInUser(ctx, data)
+	if err != nil {
+		if errors.Is(err, userrepository.ErrUserNotFound) {
+			logger.Warn("user not found", logging.Error(err))
+
+			w.WriteHeader(http.StatusNotFound)
+
+			err = api.WriteError(w, "user not found", web.CodeUserNotFound, nil)
+			if err != nil {
+				logger.Error("could not write fail response", logging.Error(err))
+			}
+
+			return ""
+		}
+
+		if errors.Is(err, userrepository.ErrNotPasswordAuth) {
+			logger.Warn("user doesn't support password based authentication", logging.Error(err))
+
+			w.WriteHeader(http.StatusBadRequest)
+
+			err = api.WriteError(
+				w,
+				"user doesn't support password authentication",
+				web.CodeNoPasswordAuth,
+				nil,
+			)
+			if err != nil {
+				logger.Error("could not send error response", logging.Error(err))
+			}
+
+			return ""
+		}
+
+		if errors.Is(err, userrepository.ErrWrongCredentials) {
+			logger.Warn("user attempt to sign in with wrong credentials", logging.Error(err))
+
+			w.WriteHeader(http.StatusUnauthorized)
+
+			err = api.WriteError(
+				w,
+				"wrong email or password",
+				web.CodeWrongCredentials,
+				nil,
+			)
+			if err != nil {
+				logger.Error("could not send error response", logging.Error(err))
+			}
+
+			return ""
+		}
+
+		logger.Error("unknown server error on user sign in", logging.Error(err))
+
+		w.WriteHeader(http.StatusInternalServerError)
+
+		err = api.WriteError(w, "unknown server error", nil, nil)
+		if err != nil {
+			logger.Error("could not send error response", logging.Error(err))
+		}
+
+		return ""
+	}
+
+	return id
 }

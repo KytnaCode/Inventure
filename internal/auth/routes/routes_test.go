@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"path"
@@ -15,7 +16,9 @@ import (
 	"github.com/kytnacode/inventure/internal/auth/routes"
 	"github.com/kytnacode/inventure/internal/auth/session"
 	userrepository "github.com/kytnacode/inventure/internal/user/repository"
+	"github.com/kytnacode/inventure/internal/web"
 	"github.com/kytnacode/inventure/pkg/api"
+	"github.com/kytnacode/inventure/pkg/passhash"
 	"github.com/kytnacode/inventure/pkg/validation"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -66,6 +69,37 @@ func encodeData(t *testing.T, data any) *bytes.Buffer {
 	}
 
 	return &buf
+}
+
+func decodeData(t *testing.T, body io.ReadCloser) *api.Response {
+	t.Helper()
+
+	resp := new(api.Response)
+
+	defer func() {
+		if err := body.Close(); err != nil {
+			t.Errorf("could not close body: %v", err)
+		}
+	}()
+
+	dec := json.NewDecoder(body)
+	dec.DisallowUnknownFields()
+
+	if err := dec.Decode(resp); err != nil {
+		t.Fatalf("could not decode response body: %v", err)
+	}
+
+	return resp
+}
+
+func printStatusCode(t *testing.T, got, expected int) {
+	t.Errorf(
+		"expected status '%v: %v': got '%v: %v'",
+		expected,
+		http.StatusText(expected),
+		got,
+		http.StatusText(got),
+	)
 }
 
 func TestRoutes_SignUpShouldStoreUser(t *testing.T) {
@@ -127,24 +161,12 @@ func TestRoutes_SignUpShouldValidateData(t *testing.T) {
 	sessionManager.LoadAndSave(http.HandlerFunc(ro.SignUp)).ServeHTTP(w, req)
 
 	res := w.Result()
-	defer func() {
-		if err := res.Body.Close(); err != nil {
-			t.Fatalf("could not close body: %v", err)
-		}
-	}()
 
 	if got := res.StatusCode; got != expectedStatusCode {
-		t.Errorf("expected status '%v': got '%v'", expectedStatusCode, got)
+		printStatusCode(t, got, expectedStatusCode)
 	}
 
-	var resp api.Response
-
-	dec := json.NewDecoder(res.Body)
-	dec.DisallowUnknownFields()
-
-	if err := dec.Decode(&resp); err != nil {
-		t.Fatalf("could not decode response body: %v", err)
-	}
+	resp := decodeData(t, res.Body)
 
 	if got := resp.Status; got != string(api.StatusFail) {
 		t.Fatalf("expected a fail response: got 'status: %v'", got)
@@ -192,5 +214,244 @@ func TestRoutes_SignUpShouldStoreSessionData(t *testing.T) {
 
 	if !found {
 		t.Fatal("no sessions found in store")
+	}
+}
+
+func TestRoutes_SignInShouldReturnUserNotFound(t *testing.T) {
+	t.Parallel()
+
+	const (
+		expectedStatusCode     = http.StatusNotFound
+		expectedResponseStatus = api.StatusError
+	)
+
+	expectedErrorCode := web.CodeUserNotFound
+
+	ro, _, sessionManager := newRoutes(t)
+
+	body := encodeData(t, routes.SignInData{
+		Email:    "non-existing@email.com",
+		Password: "random-password123",
+	})
+
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/auth/signin", body)
+
+	w := httptest.NewRecorder()
+
+	sessionManager.LoadAndSave(http.HandlerFunc(ro.SignIn)).ServeHTTP(w, req)
+
+	res := w.Result()
+
+	if got := res.StatusCode; got != expectedStatusCode {
+		printStatusCode(t, got, expectedStatusCode)
+	}
+
+	resp := decodeData(t, res.Body)
+
+	if got := resp.Status; got != string(expectedResponseStatus) {
+		t.Errorf("expected status '%v': got '%v'", string(expectedResponseStatus), got)
+	}
+
+	if resp.Code == nil {
+		t.Fatal("expected a non-nil error code")
+	}
+
+	code := *resp.Code
+
+	if code != *expectedErrorCode {
+		t.Errorf("expected error code to be '%v': got '%v'", *expectedErrorCode, code)
+	}
+}
+
+func TestRoutes_SignInShouldReturnNoPasswordAuthError(t *testing.T) {
+	t.Parallel()
+
+	const (
+		expectedStatusCode     = http.StatusBadRequest
+		expectedResponseStatus = api.StatusError
+	)
+
+	expectedErrorCode := web.CodeNoPasswordAuth
+
+	const userEmail = "my-real@email.com"
+
+	ro, g, sessionManager := newRoutes(t)
+
+	u := &userrepository.User{
+		Email: userEmail,
+		Name:  "username",
+		// No password hash.
+		// PasswordHash:
+	}
+
+	if err := g.Create(t.Context(), u); err != nil {
+		t.Fatalf("could not create test user: %v", err)
+	}
+
+	body := encodeData(t, routes.SignInData{
+		Email:    userEmail,
+		Password: "random-password",
+	})
+
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/auth/signin", body)
+
+	w := httptest.NewRecorder()
+
+	sessionManager.LoadAndSave(http.HandlerFunc(ro.SignIn)).ServeHTTP(w, req)
+
+	res := w.Result()
+
+	if got := res.StatusCode; got != expectedStatusCode {
+		printStatusCode(t, got, expectedStatusCode)
+	}
+
+	resp := decodeData(t, res.Body)
+
+	if got := resp.Status; got != string(expectedResponseStatus) {
+		t.Errorf("expected status '%v': got '%v'", string(expectedResponseStatus), got)
+	}
+
+	if resp.Code == nil {
+		t.Fatal("expected a non-nil error code")
+	}
+
+	code := *resp.Code
+
+	if code != *expectedErrorCode {
+		t.Errorf("expected error code to be '%v': got '%v'", *expectedErrorCode, code)
+	}
+}
+
+func TestRoutes_SignInShouldReturnWrongCredentialsError(t *testing.T) {
+	t.Parallel()
+
+	const (
+		expectedStatusCode     = http.StatusUnauthorized
+		expectedResponseStatus = api.StatusError
+	)
+
+	expectedErrorCode := web.CodeWrongCredentials
+
+	const (
+		userEmail    = "diana.cavendish@email.com"
+		userPassword = "iloveakko"
+	)
+
+	ro, g, sessionManager := newRoutes(t)
+
+	otherPass := passhash.Hash([]byte("other-password"))
+
+	u := &userrepository.User{
+		Email:        userEmail,
+		PasswordHash: &otherPass,
+	}
+
+	if err := g.Create(t.Context(), u); err != nil {
+		t.Fatalf("could not create test user: %v", err)
+	}
+
+	body := encodeData(t, routes.SignInData{
+		Email:    userEmail,
+		Password: userPassword,
+	})
+
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/auth/signin", body)
+
+	w := httptest.NewRecorder()
+
+	sessionManager.LoadAndSave(http.HandlerFunc(ro.SignIn)).ServeHTTP(w, req)
+
+	res := w.Result()
+
+	if got := res.StatusCode; got != expectedStatusCode {
+		printStatusCode(t, got, expectedStatusCode)
+	}
+
+	resp := decodeData(t, res.Body)
+
+	if got := resp.Status; got != string(expectedResponseStatus) {
+		t.Errorf("expected status '%v': got '%v'", string(expectedResponseStatus), got)
+	}
+
+	if resp.Code == nil {
+		t.Fatal("expected a non-nil error code")
+	}
+
+	code := *resp.Code
+
+	if code != *expectedErrorCode {
+		t.Errorf("expected error code to be '%v': got '%v'", code, *expectedErrorCode)
+	}
+}
+
+func TestRoutes_SignInShouldStoreUserInSession(t *testing.T) {
+	t.Parallel()
+
+	const expectedStatusCode = http.StatusTemporaryRedirect
+
+	const (
+		userEmail = "amity.blight@toh.com"
+		userPass  = "ilovemygf"
+	)
+
+	ro, g, sessionManager := newRoutes(t)
+
+	passwordHash := passhash.Hash([]byte(userPass))
+
+	u := &userrepository.User{
+		Email:        userEmail,
+		PasswordHash: &passwordHash,
+		Name:         "Amity Blight",
+	}
+
+	if err := g.Create(t.Context(), u); err != nil {
+		t.Fatalf("could not create test user: %v", err)
+	}
+
+	body := encodeData(t, routes.SignInData{
+		Email:    userEmail,
+		Password: userPass,
+	})
+
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/auth/signin", body)
+
+	w := httptest.NewRecorder()
+
+	sessionManager.LoadAndSave(http.HandlerFunc(ro.SignIn)).ServeHTTP(w, req)
+
+	res := w.Result()
+
+	if got := res.StatusCode; got != expectedStatusCode {
+		printStatusCode(t, got, expectedStatusCode)
+	}
+
+	var found bool
+
+	err := sessionManager.Iterate(t.Context(), func(sessCtx context.Context) error {
+		raw := sessionManager.Get(sessCtx, session.KeySessionData)
+
+		data, ok := raw.(*session.Session)
+		if !ok {
+			t.Errorf("wrong session data type: got: '%T: %v'", raw, raw)
+		}
+
+		if data == nil {
+			t.Fatalf("expected non-nil session data")
+		}
+
+		if data.ID != u.ID.String() {
+			t.Fatalf("wrong user id: expected '%v' got '%v'", u.ID, data.ID)
+		}
+
+		found = true
+
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("could not iterate for sessions: %v", err)
+	}
+
+	if !found {
+		t.Error("no sessions found")
 	}
 }
