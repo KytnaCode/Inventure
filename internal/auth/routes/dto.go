@@ -12,3 +12,12 @@ type SignUpData struct {
 	// Password is user's password in clear text.
 	Password string `json:"password"`
 }
+
+// SignInData is the necessary data for a user to sign in with password-based authentication.
+type SignInData struct {
+	// Email is user's email.
+	Email string `json:"email" validate:"required,email"`
+
+	// Password is user's password in clear text.
+	Password string `json:"password" validate:"required"`
+}
