@@ -52,6 +52,11 @@ func (ro *Routes) SignUp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	ok = api.ValidateModel(r.Context(), w, ro.v, data)
+	if !ok {
+		return
+	}
+
 	hash := passhash.Hash([]byte(data.Password))
 
 	model := &userrepository.User{
