@@ -5,8 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"time"
 
 	"github.com/alexedwards/scs/v2"
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/httprate"
 	"github.com/go-playground/validator/v10"
 	"github.com/kytnacode/inventure/internal/auth/session"
 	userrepository "github.com/kytnacode/inventure/internal/user/repository"
@@ -15,6 +18,13 @@ import (
 	"github.com/kytnacode/inventure/pkg/logging"
 	"github.com/kytnacode/inventure/pkg/passhash"
 )
+
+// Config is the configuration for authentication routes.
+type Config struct {
+	SessionManager *scs.SessionManager
+	RequestLimit   int
+	TimeWindow     time.Duration
+}
 
 // Routes handle password based authentication routes.
 type Routes struct {
@@ -113,6 +123,23 @@ func (ro *Routes) SignIn(w http.ResponseWriter, r *http.Request) {
 	})
 
 	http.Redirect(w, r, ro.redirectURL, http.StatusTemporaryRedirect)
+}
+
+// SetupRouter set ups authentication router. If `RequestLimit` or `TimeWindow` are set to zero
+// value in the given [Config], then, no rate limit will be applied.
+func (ro *Routes) SetupRouter(conf *Config) http.Handler {
+	r := chi.NewRouter()
+
+	r.Use(conf.SessionManager.LoadAndSave)
+
+	if conf.RequestLimit != 0 && conf.TimeWindow != 0 {
+		r.Use(httprate.LimitBy(conf.RequestLimit, conf.TimeWindow, api.KeyIP))
+	}
+
+	r.Post("/signin", ro.SignIn)
+	r.Post("/signup", ro.SignUp)
+
+	return r
 }
 
 func withLogger(r *http.Request, handler string) *http.Request {

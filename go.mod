@@ -6,6 +6,7 @@ require (
 	github.com/alexedwards/scs/v2 v2.9.0
 	github.com/go-chi/chi/v5 v5.3.1
 	github.com/go-chi/httplog/v3 v3.4.0
+	github.com/go-chi/httprate v0.16.0
 	github.com/go-playground/validator/v10 v10.30.3
 	golang.org/x/crypto v0.54.0
 	gorm.io/datatypes v1.2.7
@@ -22,8 +23,10 @@ require (
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
+	github.com/klauspost/cpuid/v2 v2.2.10 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect
 	github.com/mattn/go-sqlite3 v1.14.49 // indirect
+	github.com/zeebo/xxh3 v1.0.2 // indirect
 	golang.org/x/sys v0.47.0 // indirect
 	golang.org/x/text v0.40.0 // indirect
 	gorm.io/driver/mysql v1.6.0 // indirect
