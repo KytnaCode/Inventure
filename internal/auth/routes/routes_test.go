@@ -1,10 +1,7 @@
 package routes_test
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"path"
@@ -67,39 +64,6 @@ func newRoutes(t *testing.T) (
 	), g, &session
 }
 
-func encodeData(t *testing.T, data any) *bytes.Buffer {
-	t.Helper()
-
-	var buf bytes.Buffer
-
-	if err := json.NewEncoder(&buf).Encode(data); err != nil {
-		t.Fatalf("could not encode body: %v", err)
-	}
-
-	return &buf
-}
-
-func decodeData(t *testing.T, body io.ReadCloser) *api.Response {
-	t.Helper()
-
-	resp := new(api.Response)
-
-	defer func() {
-		if err := body.Close(); err != nil {
-			t.Errorf("could not close body: %v", err)
-		}
-	}()
-
-	dec := json.NewDecoder(body)
-	dec.DisallowUnknownFields()
-
-	if err := dec.Decode(resp); err != nil {
-		t.Fatalf("could not decode response body: %v", err)
-	}
-
-	return resp
-}
-
 func TestRoutes_SignUpShouldStoreUser(t *testing.T) {
 	t.Parallel()
 
@@ -111,7 +75,7 @@ func TestRoutes_SignUpShouldStoreUser(t *testing.T) {
 		Password: "abcde",
 	}
 
-	body := encodeData(t, data)
+	body := testutil.EncodeBody(t, data)
 
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/auth/login", body)
 
@@ -148,7 +112,7 @@ func TestRoutes_SignUpShouldValidateData(t *testing.T) {
 		// Missing password.
 	}
 
-	body := encodeData(t, data)
+	body := testutil.EncodeBody(t, data)
 
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/auth/signup", body)
 
@@ -166,7 +130,9 @@ func TestRoutes_SignUpShouldValidateData(t *testing.T) {
 		t.Fail()
 	}
 
-	resp := decodeData(t, res.Body)
+	resp := new(api.Response)
+
+	testutil.DecodeBody(t, res.Body, resp)
 
 	if got := resp.Status; got != string(api.StatusFail) {
 		t.Fatalf("expected a fail response: got 'status: %v'", got)
@@ -178,7 +144,7 @@ func TestRoutes_SignUpShouldStoreSessionData(t *testing.T) {
 
 	ro, _, sessionManager := newRoutes(t)
 
-	body := encodeData(t, routes.SignUpData{
+	body := testutil.EncodeBody(t, routes.SignUpData{
 		Name:     "my valid user name",
 		Email:    "my-valid@email.com",
 		Password: "my-super-secret-and-valid-password",
@@ -229,7 +195,7 @@ func TestRoutes_SignInShouldReturnUserNotFound(t *testing.T) {
 
 	ro, _, sessionManager := newRoutes(t)
 
-	body := encodeData(t, routes.SignInData{
+	body := testutil.EncodeBody(t, routes.SignInData{
 		Email:    "non-existing@email.com",
 		Password: "random-password123",
 	})
@@ -248,7 +214,9 @@ func TestRoutes_SignInShouldReturnUserNotFound(t *testing.T) {
 		t.Fail()
 	}
 
-	resp := decodeData(t, res.Body)
+	resp := new(api.Response)
+
+	testutil.DecodeBody(t, res.Body, resp)
 
 	if got := resp.Status; got != string(expectedResponseStatus) {
 		t.Errorf("expected status '%v': got '%v'", string(expectedResponseStatus), got)
@@ -290,7 +258,7 @@ func TestRoutes_SignInShouldReturnNoPasswordAuthError(t *testing.T) {
 		t.Fatalf("could not create test user: %v", err)
 	}
 
-	body := encodeData(t, routes.SignInData{
+	body := testutil.EncodeBody(t, routes.SignInData{
 		Email:    userEmail,
 		Password: "random-password",
 	})
@@ -309,7 +277,9 @@ func TestRoutes_SignInShouldReturnNoPasswordAuthError(t *testing.T) {
 		t.Fail()
 	}
 
-	resp := decodeData(t, res.Body)
+	resp := new(api.Response)
+
+	testutil.DecodeBody(t, res.Body, resp)
 
 	if got := resp.Status; got != string(expectedResponseStatus) {
 		t.Errorf("expected status '%v': got '%v'", string(expectedResponseStatus), got)
@@ -354,7 +324,7 @@ func TestRoutes_SignInShouldReturnWrongCredentialsError(t *testing.T) {
 		t.Fatalf("could not create test user: %v", err)
 	}
 
-	body := encodeData(t, routes.SignInData{
+	body := testutil.EncodeBody(t, routes.SignInData{
 		Email:    userEmail,
 		Password: userPassword,
 	})
@@ -373,7 +343,9 @@ func TestRoutes_SignInShouldReturnWrongCredentialsError(t *testing.T) {
 		t.Fail()
 	}
 
-	resp := decodeData(t, res.Body)
+	resp := new(api.Response)
+
+	testutil.DecodeBody(t, res.Body, resp)
 
 	if got := resp.Status; got != string(expectedResponseStatus) {
 		t.Errorf("expected status '%v': got '%v'", string(expectedResponseStatus), got)
@@ -414,7 +386,7 @@ func TestRoutes_SignInShouldStoreUserInSession(t *testing.T) {
 		t.Fatalf("could not create test user: %v", err)
 	}
 
-	body := encodeData(t, routes.SignInData{
+	body := testutil.EncodeBody(t, routes.SignInData{
 		Email:    userEmail,
 		Password: userPass,
 	})
