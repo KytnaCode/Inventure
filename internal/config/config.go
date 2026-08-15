@@ -14,3 +14,18 @@ type API struct {
 	// is directly exposed to internet.
 	TrustedProxies []string
 }
+
+// DatabaseSQLite is database type string for sqlite.
+const DatabaseSQLite = "sqlite"
+
+// Database contains database configuration.
+type Database struct {
+	Typ string
+
+	SQLite *SQLiteConfig
+}
+
+// SQLiteConfig contains sqlite specific configuration.
+type SQLiteConfig struct {
+	ConnectionString string
+}
