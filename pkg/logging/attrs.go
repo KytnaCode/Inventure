@@ -9,6 +9,9 @@ const (
 
 	// KeyHandler is the key used for HTTP handler log attributed.
 	KeyHandler = "handler"
+
+	// KeyMiddleware is the key used for HTTP middlewares log attributes.
+	KeyMiddleware = "middleware"
 )
 
 // Error creates a new [slog.Attr] with [KeyError] as key and error as value
@@ -19,4 +22,9 @@ func Error(err error) slog.Attr {
 // Handler creates a new [slog.Attr] with [KeyHandler] as key and handler's name as value.
 func Handler(name string) slog.Attr {
 	return slog.String(KeyHandler, name)
+}
+
+// Middleware creates a new [slog.Attr] with [KeyMiddleware] as key and middleware's name as value.
+func Middleware(name string) slog.Attr {
+	return slog.String(KeyMiddleware, name)
 }
