@@ -30,7 +30,7 @@ func Connect(ctx context.Context, conf *config.Database) (db *gorm.DB, ok bool) 
 	}
 
 	if typ == config.DatabaseSQLite {
-		return connectSQLite(ctx, conf.SQLite)
+		return connectSQLite(ctx, &conf.SQLite)
 	}
 
 	logger.Error("unknown database type")

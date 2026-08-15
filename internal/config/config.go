@@ -6,6 +6,8 @@ type Config struct {
 	Debug bool
 
 	API API
+
+	Database Database
 }
 
 // API contains API configuration options.
@@ -22,7 +24,7 @@ const DatabaseSQLite = "sqlite"
 type Database struct {
 	Typ string
 
-	SQLite *SQLiteConfig
+	SQLite SQLiteConfig
 }
 
 // SQLiteConfig contains sqlite specific configuration.
