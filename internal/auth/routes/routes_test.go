@@ -15,6 +15,7 @@ import (
 	"github.com/alexedwards/scs/v2/memstore"
 	"github.com/kytnacode/inventure/internal/auth/routes"
 	"github.com/kytnacode/inventure/internal/auth/session"
+	"github.com/kytnacode/inventure/internal/testutil"
 	userrepository "github.com/kytnacode/inventure/internal/user/repository"
 	"github.com/kytnacode/inventure/internal/web"
 	"github.com/kytnacode/inventure/pkg/api"
@@ -92,16 +93,6 @@ func decodeData(t *testing.T, body io.ReadCloser) *api.Response {
 	return resp
 }
 
-func printStatusCode(t *testing.T, got, expected int) {
-	t.Errorf(
-		"expected status '%v: %v': got '%v: %v'",
-		expected,
-		http.StatusText(expected),
-		got,
-		http.StatusText(got),
-	)
-}
-
 func TestRoutes_SignUpShouldStoreUser(t *testing.T) {
 	t.Parallel()
 
@@ -163,7 +154,9 @@ func TestRoutes_SignUpShouldValidateData(t *testing.T) {
 	res := w.Result()
 
 	if got := res.StatusCode; got != expectedStatusCode {
-		printStatusCode(t, got, expectedStatusCode)
+		testutil.PrintStatusCode(t, got, expectedStatusCode)
+
+		t.Fail()
 	}
 
 	resp := decodeData(t, res.Body)
@@ -243,7 +236,9 @@ func TestRoutes_SignInShouldReturnUserNotFound(t *testing.T) {
 	res := w.Result()
 
 	if got := res.StatusCode; got != expectedStatusCode {
-		printStatusCode(t, got, expectedStatusCode)
+		testutil.PrintStatusCode(t, got, expectedStatusCode)
+
+		t.Fail()
 	}
 
 	resp := decodeData(t, res.Body)
@@ -302,7 +297,9 @@ func TestRoutes_SignInShouldReturnNoPasswordAuthError(t *testing.T) {
 	res := w.Result()
 
 	if got := res.StatusCode; got != expectedStatusCode {
-		printStatusCode(t, got, expectedStatusCode)
+		testutil.PrintStatusCode(t, got, expectedStatusCode)
+
+		t.Fail()
 	}
 
 	resp := decodeData(t, res.Body)
@@ -364,7 +361,9 @@ func TestRoutes_SignInShouldReturnWrongCredentialsError(t *testing.T) {
 	res := w.Result()
 
 	if got := res.StatusCode; got != expectedStatusCode {
-		printStatusCode(t, got, expectedStatusCode)
+		testutil.PrintStatusCode(t, got, expectedStatusCode)
+
+		t.Fail()
 	}
 
 	resp := decodeData(t, res.Body)
@@ -422,7 +421,9 @@ func TestRoutes_SignInShouldStoreUserInSession(t *testing.T) {
 	res := w.Result()
 
 	if got := res.StatusCode; got != expectedStatusCode {
-		printStatusCode(t, got, expectedStatusCode)
+		testutil.PrintStatusCode(t, got, expectedStatusCode)
+
+		t.Fail()
 	}
 
 	var found bool
