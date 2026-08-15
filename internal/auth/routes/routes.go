@@ -28,24 +28,27 @@ type Config struct {
 
 // Routes handle password based authentication routes.
 type Routes struct {
-	userRepo       *userrepository.Repository
-	v              *validator.Validate
-	sessionManager *scs.SessionManager
-	redirectURL    string
+	userRepo         *userrepository.Repository
+	v                *validator.Validate
+	sessionManager   *scs.SessionManager
+	redirectURL      string
+	loginRateLimiter *httprate.RateLimiter
 }
 
 // New creates a new [Routes].
 func New(
 	userRepo *userrepository.Repository,
 	sessionManager *scs.SessionManager,
+	loginRateLimiter *httprate.RateLimiter,
 	v *validator.Validate,
 	redirectURL string,
 ) *Routes {
 	return &Routes{
-		userRepo:       userRepo,
-		sessionManager: sessionManager,
-		v:              v,
-		redirectURL:    redirectURL,
+		userRepo:         userRepo,
+		sessionManager:   sessionManager,
+		loginRateLimiter: loginRateLimiter,
+		v:                v,
+		redirectURL:      redirectURL,
 	}
 }
 
@@ -64,6 +67,10 @@ func (ro *Routes) SignUp(w http.ResponseWriter, r *http.Request) {
 
 	ok = api.ValidateModel(r.Context(), w, ro.v, data)
 	if !ok {
+		return
+	}
+
+	if ro.loginRateLimiter.RespondOnLimit(w, r, data.Email) {
 		return
 	}
 
@@ -107,6 +114,10 @@ func (ro *Routes) SignIn(w http.ResponseWriter, r *http.Request) {
 
 	ok = api.ValidateModel(r.Context(), w, ro.v, data)
 	if !ok {
+		return
+	}
+
+	if ro.loginRateLimiter.RespondOnLimit(w, r, data.Email) {
 		return
 	}
 
