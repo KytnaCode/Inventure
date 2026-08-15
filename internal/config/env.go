@@ -11,12 +11,27 @@ const (
 
 	// EnvAPIPrefix is the prefix used for API configuration environment variables.
 	EnvAPIPrefix = EnvPrefix + "API_"
+
+	// EnvDatabasePrefix is the prefix used for database configuration environment variables.
+	EnvDatabasePrefix = EnvPrefix + "DATABASE_"
+
+	// EnvSqlitePrefix is the prefix used for sqlite specific configuration environment variables.
+	EnvSqlitePrefix = EnvDatabasePrefix + "SQLITE_"
 )
 
 // Environment variable names used for configuration.
 const (
-	EnvDebug          = EnvPrefix + "DEBUG"
+	// General
+	EnvDebug = EnvPrefix + "DEBUG"
+
+	// API
 	EnvTrustedProxies = EnvAPIPrefix + "TRUSTED_PROXIES"
+
+	// Database
+	EnvDatabaseType = EnvDatabasePrefix + "TYPE"
+
+	// SQLite
+	EnvSqliteConnectionString = EnvSqlitePrefix + "CONNECTION_STRING"
 )
 
 // FromEnv reads configuration from environment. Doesn't validate data, if variable is not
@@ -26,6 +41,12 @@ func FromEnv() *Config {
 		Debug: envExists(EnvDebug),
 		API: API{
 			TrustedProxies: strings.Split(os.Getenv(EnvTrustedProxies), ","),
+		},
+		Database: Database{
+			Typ: os.Getenv(EnvDatabaseType),
+			SQLite: SQLiteConfig{
+				ConnectionString: os.Getenv(EnvSqliteConnectionString),
+			},
 		},
 	}
 }
