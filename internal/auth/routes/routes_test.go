@@ -13,6 +13,7 @@ import (
 
 	"github.com/alexedwards/scs/v2"
 	"github.com/alexedwards/scs/v2/memstore"
+	"github.com/go-chi/httprate"
 	"github.com/kytnacode/inventure/internal/auth/routes"
 	"github.com/kytnacode/inventure/internal/auth/session"
 	userrepository "github.com/kytnacode/inventure/internal/user/repository"
@@ -56,7 +57,13 @@ func newRoutes(t *testing.T) (
 
 	session := *sessionManager
 
-	return routes.New(userRepo, &session, v, redirectLocation), g, &session
+	return routes.New(
+		userRepo,
+		&session,
+		httprate.NewRateLimiter(60, time.Minute),
+		v,
+		redirectLocation,
+	), g, &session
 }
 
 func encodeData(t *testing.T, data any) *bytes.Buffer {
