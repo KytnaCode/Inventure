@@ -1,5 +1,13 @@
 package config
 
+// Configuration defaults.
+const (
+	DefaultPasswordAuthRequestLimit      = 15
+	DefaultPasswordAuthTimeWindowSeconds = 60
+	DefaultLoginAttemptLimit             = 10
+	DefaultLoginAttemptTimeWindowSeconds = 300
+)
+
 // Config represents app's configuration.
 type Config struct {
 	// Debug is true if the app is on debug mode.
