@@ -12,6 +12,9 @@ import (
 type Config struct {
 	Server          *http.Server
 	ShutdownTimeout time.Duration
+
+	// If both CertFile and KeyFile are set then server will run with TLS enabled.
+	CertFile, KeyFile string
 }
 
 // ListenAndServe starts listening with the given server from [Config] and handles
@@ -31,7 +34,13 @@ func ListenAndServe(ctx context.Context, conf *Config) error {
 		errCh <- conf.Server.Shutdown(shutdownCtx)
 	}()
 
-	err := conf.Server.ListenAndServe()
+	var err error
+
+	if conf.CertFile != "" && conf.KeyFile != "" {
+		err = conf.Server.ListenAndServeTLS(conf.CertFile, conf.KeyFile)
+	} else {
+		err = conf.Server.ListenAndServe()
+	}
 
 	return errors.Join(err, <-errCh)
 }
