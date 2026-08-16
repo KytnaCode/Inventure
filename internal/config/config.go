@@ -13,6 +13,9 @@ type Config struct {
 	// Debug is true if the app is on debug mode.
 	Debug bool
 
+	// Addr is the address for the app to listen on.
+	Addr string
+
 	API API
 
 	Database Database
