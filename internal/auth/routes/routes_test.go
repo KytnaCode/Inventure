@@ -55,14 +55,14 @@ func newRoutes(t *testing.T) (
 	session := *sessionManager
 
 	conf := &routes.Config{
-		Validator:                    v,
-		SessionManager:               sessionManager,
-		RequestLimit:                 10,
-		TimeWindow:                   time.Minute,
-		UserRepo:                     userRepo,
-		LoginAttemptLimit:            5,
-		LoginAttempTimeWindowSeconds: 60,
-		RedirectURL:                  redirectLocation,
+		Validator:             v,
+		SessionManager:        sessionManager,
+		RequestLimit:          10,
+		TimeWindow:            time.Minute,
+		UserRepo:              userRepo,
+		LoginAttemptLimit:     5,
+		LoginAttempTimeWindow: time.Minute,
+		RedirectURL:           redirectLocation,
 	}
 
 	return routes.New(conf), g, &session
