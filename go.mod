@@ -23,6 +23,7 @@ require (
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
+	github.com/joho/godotenv v1.5.1 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.10 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect
 	github.com/mattn/go-sqlite3 v1.14.49 // indirect
@@ -31,3 +32,5 @@ require (
 	golang.org/x/text v0.41.0 // indirect
 	gorm.io/driver/mysql v1.6.0 // indirect
 )
+
+tool github.com/joho/godotenv/cmd/godotenv
