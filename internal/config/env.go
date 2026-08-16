@@ -48,7 +48,7 @@ func FromEnv() *Config {
 		Debug: envExists(EnvDebug),
 		Addr:  os.Getenv(EnvAddr),
 		API: API{
-			TrustedProxies:   strings.Split(os.Getenv(EnvTrustedProxies), ","),
+			TrustedProxies:   listOrEmpty(EnvTrustedProxies),
 			DisableRateLimit: envExists(EnvDisableRateLimit),
 			PasswordAuthRequestLimit: intOr(
 				EnvPasswordAuthRequestLimit,
@@ -74,6 +74,21 @@ func FromEnv() *Config {
 			},
 		},
 	}
+}
+
+// listOrEmpty return a list of comma separated values, if variable is not set or is set to an
+// empty value, then an empty slices will be returned.
+func listOrEmpty(env string) []string {
+	v, ok := os.LookupEnv(env)
+	if !ok {
+		return []string{}
+	}
+
+	if v == "" {
+		return []string{}
+	}
+
+	return strings.Split(v, ",")
 }
 
 // envExists check if a variable is set, if set to an empty string or 0 returns false.
