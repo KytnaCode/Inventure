@@ -62,9 +62,12 @@ func FromEnv() *Config {
 	}
 }
 
-// envExists check if a variable is set, even if it's empty.
+// envExists check if a variable is set, if set to an empty string or 0 returns false.
 func envExists(env string) bool {
-	_, ok := os.LookupEnv(env)
+	v, ok := os.LookupEnv(env)
+	if ok && (v == "" || v == "0") {
+		return false
+	}
 
 	return ok
 }
