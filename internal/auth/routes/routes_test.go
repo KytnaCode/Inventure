@@ -55,13 +55,17 @@ func newRoutes(t *testing.T) (
 
 	session := *sessionManager
 
-	return routes.New(
-		userRepo,
-		&session,
-		httprate.NewRateLimiter(60, time.Minute),
-		v,
-		redirectLocation,
-	), g, &session
+	conf := &routes.Config{
+		Validator:        v,
+		SessionManager:   sessionManager,
+		RequestLimit:     10,
+		TimeWindow:       time.Minute,
+		UserRepo:         userRepo,
+		LoginRateLimiter: httprate.NewRateLimiter(5, time.Minute),
+		RedirectURL:      redirectLocation,
+	}
+
+	return routes.New(conf), g, &session
 }
 
 func TestRoutes_SignUpShouldStoreUser(t *testing.T) {

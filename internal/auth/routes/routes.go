@@ -22,34 +22,24 @@ import (
 
 // Config is the configuration for authentication routes.
 type Config struct {
-	SessionManager *scs.SessionManager
-	RequestLimit   int
-	TimeWindow     time.Duration
+	UserRepo         *userrepository.Repository
+	LoginRateLimiter *httprate.RateLimiter
+	SessionManager   *scs.SessionManager
+	RequestLimit     int
+	TimeWindow       time.Duration
+	Validator        *validator.Validate
+	RedirectURL      string
 }
 
 // Routes handle password based authentication routes.
 type Routes struct {
-	userRepo         *userrepository.Repository
-	v                *validator.Validate
-	sessionManager   *scs.SessionManager
-	redirectURL      string
-	loginRateLimiter *httprate.RateLimiter
+	conf *Config
 }
 
 // New creates a new [Routes].
-func New(
-	userRepo *userrepository.Repository,
-	sessionManager *scs.SessionManager,
-	loginRateLimiter *httprate.RateLimiter,
-	v *validator.Validate,
-	redirectURL string,
-) *Routes {
+func New(conf *Config) *Routes {
 	return &Routes{
-		userRepo:         userRepo,
-		sessionManager:   sessionManager,
-		loginRateLimiter: loginRateLimiter,
-		v:                v,
-		redirectURL:      redirectURL,
+		conf: conf,
 	}
 }
 
@@ -66,12 +56,12 @@ func (ro *Routes) SignUp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ok = api.ValidateModel(r.Context(), w, ro.v, data)
+	ok = api.ValidateModel(r.Context(), w, ro.conf.Validator, data)
 	if !ok {
 		return
 	}
 
-	if ro.loginRateLimiter.RespondOnLimit(w, r, data.Email) {
+	if ro.conf.LoginRateLimiter.RespondOnLimit(w, r, data.Email) {
 		return
 	}
 
@@ -83,26 +73,26 @@ func (ro *Routes) SignUp(w http.ResponseWriter, r *http.Request) {
 		PasswordHash: &hash,
 	}
 
-	ok = api.ValidateModel(r.Context(), w, ro.v, model)
+	ok = api.ValidateModel(r.Context(), w, ro.conf.Validator, model)
 	if !ok {
 		return
 	}
 
-	id, ok := signUpUser(r.Context(), w, ro.userRepo, model, hash)
+	id, ok := signUpUser(r.Context(), w, ro.conf.UserRepo, model, hash)
 	if !ok {
 		return
 	}
 
-	ok = destroyExistingSession(r.Context(), w, ro.sessionManager)
+	ok = destroyExistingSession(r.Context(), w, ro.conf.SessionManager)
 	if !ok {
 		return
 	}
 
-	ro.sessionManager.Put(r.Context(), session.KeySessionData, &session.Session{
+	ro.conf.SessionManager.Put(r.Context(), session.KeySessionData, &session.Session{
 		ID: id,
 	})
 
-	http.Redirect(w, r, ro.redirectURL, http.StatusTemporaryRedirect)
+	http.Redirect(w, r, ro.conf.RedirectURL, http.StatusTemporaryRedirect)
 }
 
 // SignIn is the handler for password-based sign in.
@@ -118,16 +108,16 @@ func (ro *Routes) SignIn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ok = api.ValidateModel(r.Context(), w, ro.v, data)
+	ok = api.ValidateModel(r.Context(), w, ro.conf.Validator, data)
 	if !ok {
 		return
 	}
 
-	if ro.loginRateLimiter.RespondOnLimit(w, r, data.Email) {
+	if ro.conf.LoginRateLimiter.RespondOnLimit(w, r, data.Email) {
 		return
 	}
 
-	id := signInUser(r.Context(), w, ro.userRepo, &userrepository.SignInUserData{
+	id := signInUser(r.Context(), w, ro.conf.UserRepo, &userrepository.SignInUserData{
 		Email:         data.Email,
 		ClearPassword: data.Password,
 	})
@@ -135,28 +125,28 @@ func (ro *Routes) SignIn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ok = destroyExistingSession(r.Context(), w, ro.sessionManager)
+	ok = destroyExistingSession(r.Context(), w, ro.conf.SessionManager)
 	if !ok {
 		return
 	}
 
-	ro.sessionManager.Put(r.Context(), session.KeySessionData, &session.Session{
+	ro.conf.SessionManager.Put(r.Context(), session.KeySessionData, &session.Session{
 		ID: id,
 	})
 
-	http.Redirect(w, r, ro.redirectURL, http.StatusTemporaryRedirect)
+	http.Redirect(w, r, ro.conf.RedirectURL, http.StatusTemporaryRedirect)
 }
 
 // SetupRouter set ups authentication router. If `RequestLimit` or `TimeWindow` are set to zero
 // value in the given [Config], then, no rate limit will be applied.
-func (ro *Routes) SetupRouter(conf *Config) http.Handler {
+func (ro *Routes) SetupRouter() http.Handler {
 	r := chi.NewRouter()
 
-	r.Use(conf.SessionManager.LoadAndSave)
-	r.Use(csrf.RequireCSRF(ro.sessionManager))
+	r.Use(ro.conf.SessionManager.LoadAndSave)
+	r.Use(csrf.RequireCSRF(ro.conf.SessionManager))
 
-	if conf.RequestLimit != 0 && conf.TimeWindow != 0 {
-		r.Use(httprate.LimitBy(conf.RequestLimit, conf.TimeWindow, api.KeyIP))
+	if ro.conf.RequestLimit != 0 && ro.conf.TimeWindow != 0 {
+		r.Use(httprate.LimitBy(ro.conf.RequestLimit, ro.conf.TimeWindow, api.KeyIP))
 	}
 
 	r.Post("/signin", ro.SignIn)
