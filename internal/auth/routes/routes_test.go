@@ -10,7 +10,6 @@ import (
 
 	"github.com/alexedwards/scs/v2"
 	"github.com/alexedwards/scs/v2/memstore"
-	"github.com/go-chi/httprate"
 	"github.com/kytnacode/inventure/internal/auth/routes"
 	"github.com/kytnacode/inventure/internal/auth/session"
 	"github.com/kytnacode/inventure/internal/testutil"
@@ -56,13 +55,14 @@ func newRoutes(t *testing.T) (
 	session := *sessionManager
 
 	conf := &routes.Config{
-		Validator:        v,
-		SessionManager:   sessionManager,
-		RequestLimit:     10,
-		TimeWindow:       time.Minute,
-		UserRepo:         userRepo,
-		LoginRateLimiter: httprate.NewRateLimiter(5, time.Minute),
-		RedirectURL:      redirectLocation,
+		Validator:                    v,
+		SessionManager:               sessionManager,
+		RequestLimit:                 10,
+		TimeWindow:                   time.Minute,
+		UserRepo:                     userRepo,
+		LoginAttemptLimit:            5,
+		LoginAttempTimeWindowSeconds: 60,
+		RedirectURL:                  redirectLocation,
 	}
 
 	return routes.New(conf), g, &session
