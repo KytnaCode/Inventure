@@ -22,14 +22,14 @@ import (
 
 // Config is the configuration for authentication routes.
 type Config struct {
-	UserRepo                     *userrepository.Repository
-	LoginAttemptLimit            int
-	LoginAttempTimeWindowSeconds int
-	SessionManager               *scs.SessionManager
-	RequestLimit                 int
-	TimeWindow                   time.Duration
-	Validator                    *validator.Validate
-	RedirectURL                  string
+	UserRepo              *userrepository.Repository
+	LoginAttemptLimit     int
+	LoginAttempTimeWindow time.Duration
+	SessionManager        *scs.SessionManager
+	RequestLimit          int
+	TimeWindow            time.Duration
+	Validator             *validator.Validate
+	RedirectURL           string
 }
 
 // Routes handle password based authentication routes.
@@ -42,10 +42,10 @@ type Routes struct {
 func New(conf *Config) *Routes {
 	limiter := new(httprate.RateLimiter)
 
-	if conf.LoginAttemptLimit != 0 && conf.LoginAttempTimeWindowSeconds != 0 {
+	if conf.LoginAttemptLimit != 0 && conf.LoginAttempTimeWindow != 0 {
 		limiter = httprate.NewRateLimiter(
 			conf.LoginAttemptLimit,
-			time.Second*time.Duration(conf.LoginAttempTimeWindowSeconds),
+			conf.LoginAttempTimeWindow,
 		)
 	}
 
