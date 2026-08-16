@@ -24,6 +24,7 @@ const (
 const (
 	// General
 	EnvDebug = EnvPrefix + "DEBUG"
+	EnvAddr  = EnvPrefix + "ADDR"
 
 	// API
 	EnvTrustedProxies                = EnvAPIPrefix + "TRUSTED_PROXIES"
@@ -45,6 +46,7 @@ const (
 func FromEnv() *Config {
 	return &Config{
 		Debug: envExists(EnvDebug),
+		Addr:  os.Getenv(EnvAddr),
 		API: API{
 			TrustedProxies:   strings.Split(os.Getenv(EnvTrustedProxies), ","),
 			DisableRateLimit: envExists(EnvDisableRateLimit),
