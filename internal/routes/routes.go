@@ -61,7 +61,7 @@ func SetupRouter(conf *Config) http.Handler {
 
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Get("/health", HealthCheck)
-		r.Get("/csrf", csrf.HandleCSRF(conf.SessionManager))
+		r.With(conf.SessionManager.LoadAndSave).Get("/csrf", csrf.HandleCSRF(conf.SessionManager))
 
 		r.Mount("/auth", conf.AuthRoutes.SetupRouter())
 	})
