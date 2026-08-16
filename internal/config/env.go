@@ -46,12 +46,24 @@ func FromEnv() *Config {
 	return &Config{
 		Debug: envExists(EnvDebug),
 		API: API{
-			TrustedProxies:                strings.Split(os.Getenv(EnvTrustedProxies), ","),
-			DisableRateLimit:              envExists(EnvDisableRateLimit),
-			PasswordAuthRequestLimit:      intOrDefault(EnvPasswordAuthRequestLimit),
-			PasswordAuthTimeWindowSeconds: intOrDefault(EnvPasswordAuthTimeWindowSeconds),
-			LoginAttemptLimit:             intOrDefault(EnvLoginAttemptLimit),
-			LoginAttemptTimeWindowSeconds: intOrDefault(EnvLoginAttemptTimeWindowSeconds),
+			TrustedProxies:   strings.Split(os.Getenv(EnvTrustedProxies), ","),
+			DisableRateLimit: envExists(EnvDisableRateLimit),
+			PasswordAuthRequestLimit: intOr(
+				EnvPasswordAuthRequestLimit,
+				DefaultPasswordAuthRequestLimit,
+			),
+			PasswordAuthTimeWindowSeconds: intOr(
+				EnvPasswordAuthTimeWindowSeconds,
+				DefaultPasswordAuthTimeWindowSeconds,
+			),
+			LoginAttemptLimit: intOr(
+				EnvLoginAttemptLimit,
+				DefaultLoginAttemptLimit,
+			),
+			LoginAttemptTimeWindowSeconds: intOr(
+				EnvLoginAttemptTimeWindowSeconds,
+				DefaultLoginAttemptTimeWindowSeconds,
+			),
 		},
 		Database: Database{
 			Typ: os.Getenv(EnvDatabaseType),
@@ -72,10 +84,10 @@ func envExists(env string) bool {
 	return ok
 }
 
-func intOrDefault(env string) int {
+func intOr(env string, def int) int {
 	raw, ok := os.LookupEnv(env)
 	if !ok {
-		return 0
+		return def
 	}
 
 	v, err := strconv.ParseInt(raw, 10, 0)
