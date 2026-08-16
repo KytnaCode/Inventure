@@ -8,6 +8,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/kytnacode/inventure/internal/auth/csrf"
+	authroutes "github.com/kytnacode/inventure/internal/auth/routes"
 	"github.com/kytnacode/inventure/pkg/logging"
 )
 
@@ -17,6 +18,7 @@ type Config struct {
 	IPMiddleware             func(next http.Handler) http.Handler
 	EmbeddedLoggerMiddelware func(next http.Handler) http.Handler
 	SessionManager           *scs.SessionManager
+	AuthRoutes               *authroutes.Routes
 }
 
 // HealthCheck is a health check handler.
@@ -60,6 +62,8 @@ func SetupRouter(conf *Config) http.Handler {
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Get("/health", HealthCheck)
 		r.Get("/csrf", csrf.HandleCSRF(conf.SessionManager))
+
+		r.Mount("/auth", conf.AuthRoutes.SetupRouter())
 	})
 
 	return r
