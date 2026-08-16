@@ -30,7 +30,9 @@ go.work
 .envrc
 .direnv
 
+# Development configuration.
 .env
+config.yml
 
 # Testing database.
 app.db 
