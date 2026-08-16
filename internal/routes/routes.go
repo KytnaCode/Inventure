@@ -4,8 +4,10 @@ package routes
 import (
 	"net/http"
 
+	"github.com/alexedwards/scs/v2"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/kytnacode/inventure/internal/auth/csrf"
 	"github.com/kytnacode/inventure/pkg/logging"
 )
 
@@ -14,6 +16,7 @@ type Config struct {
 	LoggerMiddleware         func(next http.Handler) http.Handler
 	IPMiddleware             func(next http.Handler) http.Handler
 	EmbeddedLoggerMiddelware func(next http.Handler) http.Handler
+	SessionManager           *scs.SessionManager
 }
 
 // HealthCheck is a health check handler.
@@ -54,7 +57,10 @@ func SetupRouter(conf *Config) http.Handler {
 
 	r.Use(baseMiddlewares(conf)...)
 
-	r.Get("/api/v1/health", HealthCheck)
+	r.Route("/api/v1", func(r chi.Router) {
+		r.Get("/health", HealthCheck)
+		r.Get("/csrf", csrf.HandleCSRF(conf.SessionManager))
+	})
 
 	return r
 }
