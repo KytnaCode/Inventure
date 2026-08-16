@@ -15,6 +15,31 @@ type API struct {
 	// TrustedProxies is a list of trusted CIDR prefixes, if none the application will assume
 	// is directly exposed to internet.
 	TrustedProxies []string
+
+	// DisableRateLimit disables included rate limit, set if using a reverse proxy for rate limiting.
+	DisableRateLimit bool
+
+	// PasswordAuthRequestLimit request limit for password-based authentication, independent from
+	// email address. Set this or [PasswordAuthTimeWindowSeconds] to 0 to disable raw rate
+	// limiting for authentication endpoints, alternatively set [DisableRateLimit] to disable rate
+	// limiting globally.
+	PasswordAuthRequestLimit int
+
+	// PasswordAuthTimeWindowSeconds is the time window in seconds for that
+	// [PasswordAuthRequestLimit] applies. Set this or [PasswordAuthRequestLimit] to 0 to disable raw
+	// rate limiting for authentication endpoints, alternatively set [DisableRateLimit] to disable
+	// rate limiting globally.
+	PasswordAuthTimeWindowSeconds int
+
+	// LoginAttemptLimit is the limit of login or sign up attempts for a specific email address.
+	// set this or [LoginAttemptTimeWindowSeconds] to 0 to disable login attempt limit, alternatively
+	// set [DisableRateLimit] to disable rate limiting globally.
+	LoginAttemptLimit int
+
+	// LoginAttemptTimeWindowSeconds is the time window in seconds for that [LoginAttemptLimit]
+	// applies. Set this or [LoginAttemptLimit] to 0 to disable login attempt limit, alternatively
+	// set [DisableRateLimit] to disable rate limiting globally.
+	LoginAttemptTimeWindowSeconds int
 }
 
 // DatabaseSQLite is database type string for sqlite.

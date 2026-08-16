@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -25,7 +26,12 @@ const (
 	EnvDebug = EnvPrefix + "DEBUG"
 
 	// API
-	EnvTrustedProxies = EnvAPIPrefix + "TRUSTED_PROXIES"
+	EnvTrustedProxies                = EnvAPIPrefix + "TRUSTED_PROXIES"
+	EnvEnableRateLimit               = EnvAPIPrefix + "RATE_LIMIT_ENABLE"
+	EnvPasswordAuthRequestLimit      = EnvAPIPrefix + "PASSWORD_AUTH_REQUEST_LIMIT"
+	EnvPasswordAuthTimeWindowSeconds = EnvAPIPrefix + "PASSWORD_AUTH_TIME_WINDOW_SECONDS"
+	EnvLoginAttemptLimit             = EnvAPIPrefix + "LOGIN_ATTEMPT_LIMIT"
+	EnvLoginAttemptTimeWindowSeconds = EnvAPIPrefix + "LOGIN_ATTEMPT_TIME_WINDOW_SECONDS"
 
 	// Database
 	EnvDatabaseType = EnvDatabasePrefix + "TYPE"
@@ -40,7 +46,12 @@ func FromEnv() *Config {
 	return &Config{
 		Debug: envExists(EnvDebug),
 		API: API{
-			TrustedProxies: strings.Split(os.Getenv(EnvTrustedProxies), ","),
+			TrustedProxies:                strings.Split(os.Getenv(EnvTrustedProxies), ","),
+			DisableRateLimit:              envExists(EnvEnableRateLimit),
+			PasswordAuthRequestLimit:      intOrDefault(EnvPasswordAuthRequestLimit),
+			PasswordAuthTimeWindowSeconds: intOrDefault(EnvPasswordAuthTimeWindowSeconds),
+			LoginAttemptLimit:             intOrDefault(EnvLoginAttemptLimit),
+			LoginAttemptTimeWindowSeconds: intOrDefault(EnvLoginAttemptTimeWindowSeconds),
 		},
 		Database: Database{
 			Typ: os.Getenv(EnvDatabaseType),
@@ -56,4 +67,18 @@ func envExists(env string) bool {
 	_, ok := os.LookupEnv(env)
 
 	return ok
+}
+
+func intOrDefault(env string) int {
+	raw, ok := os.LookupEnv(env)
+	if !ok {
+		return 0
+	}
+
+	v, err := strconv.ParseInt(raw, 10, 0)
+	if err != nil {
+		return 0
+	}
+
+	return int(v)
 }
