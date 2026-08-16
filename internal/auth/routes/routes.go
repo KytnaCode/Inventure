@@ -22,24 +22,36 @@ import (
 
 // Config is the configuration for authentication routes.
 type Config struct {
-	UserRepo         *userrepository.Repository
-	LoginRateLimiter *httprate.RateLimiter
-	SessionManager   *scs.SessionManager
-	RequestLimit     int
-	TimeWindow       time.Duration
-	Validator        *validator.Validate
-	RedirectURL      string
+	UserRepo                     *userrepository.Repository
+	LoginAttemptLimit            int
+	LoginAttempTimeWindowSeconds int
+	SessionManager               *scs.SessionManager
+	RequestLimit                 int
+	TimeWindow                   time.Duration
+	Validator                    *validator.Validate
+	RedirectURL                  string
 }
 
 // Routes handle password based authentication routes.
 type Routes struct {
-	conf *Config
+	conf         *Config
+	loginLimiter *httprate.RateLimiter
 }
 
 // New creates a new [Routes].
 func New(conf *Config) *Routes {
+	limiter := new(httprate.RateLimiter)
+
+	if conf.LoginAttemptLimit != 0 && conf.LoginAttempTimeWindowSeconds != 0 {
+		limiter = httprate.NewRateLimiter(
+			conf.LoginAttemptLimit,
+			time.Second*time.Duration(conf.LoginAttempTimeWindowSeconds),
+		)
+	}
+
 	return &Routes{
-		conf: conf,
+		conf:         conf,
+		loginLimiter: limiter,
 	}
 }
 
@@ -61,7 +73,9 @@ func (ro *Routes) SignUp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if ro.conf.LoginRateLimiter.RespondOnLimit(w, r, data.Email) {
+	limiter := ro.loginLimiter
+
+	if limiter != nil && limiter.RespondOnLimit(w, r, data.Email) {
 		return
 	}
 
@@ -113,7 +127,9 @@ func (ro *Routes) SignIn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if ro.conf.LoginRateLimiter.RespondOnLimit(w, r, data.Email) {
+	limiter := ro.loginLimiter
+
+	if limiter != nil && limiter.RespondOnLimit(w, r, data.Email) {
 		return
 	}
 
