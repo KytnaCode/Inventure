@@ -11,6 +11,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/httprate"
 	"github.com/go-playground/validator/v10"
+	"github.com/kytnacode/inventure/internal/auth/csrf"
 	"github.com/kytnacode/inventure/internal/auth/session"
 	userrepository "github.com/kytnacode/inventure/internal/user/repository"
 	"github.com/kytnacode/inventure/internal/web"
@@ -92,6 +93,11 @@ func (ro *Routes) SignUp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	ok = destroyExistingSession(r.Context(), w, ro.sessionManager)
+	if !ok {
+		return
+	}
+
 	ro.sessionManager.Put(r.Context(), session.KeySessionData, &session.Session{
 		ID: id,
 	})
@@ -129,6 +135,11 @@ func (ro *Routes) SignIn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	ok = destroyExistingSession(r.Context(), w, ro.sessionManager)
+	if !ok {
+		return
+	}
+
 	ro.sessionManager.Put(r.Context(), session.KeySessionData, &session.Session{
 		ID: id,
 	})
@@ -142,6 +153,7 @@ func (ro *Routes) SetupRouter(conf *Config) http.Handler {
 	r := chi.NewRouter()
 
 	r.Use(conf.SessionManager.LoadAndSave)
+	r.Use(csrf.RequireCSRF(ro.sessionManager))
 
 	if conf.RequestLimit != 0 && conf.TimeWindow != 0 {
 		r.Use(httprate.LimitBy(conf.RequestLimit, conf.TimeWindow, api.KeyIP))
@@ -286,4 +298,26 @@ func signInUser(
 	}
 
 	return id
+}
+
+func destroyExistingSession(
+	ctx context.Context,
+	w http.ResponseWriter,
+	m *scs.SessionManager,
+) (ok bool) {
+	logger := logging.FromCtx(ctx)
+
+	err := m.Destroy(ctx)
+	if err != nil {
+		logger.Error("could not destroy session", logging.Error(err))
+
+		err = api.WriteError(w, "internal server error", nil, nil)
+		if err != nil {
+			logger.Error("could not write error response", logging.Error(err))
+		}
+
+		return false
+	}
+
+	return true
 }
