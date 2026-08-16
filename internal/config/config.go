@@ -17,7 +17,6 @@ type Config struct {
 	// Debug is true if the app is on debug mode.
 	Debug bool
 
-	// Addr is the address for the app to listen on.
 	Addr string
 
 	API API
@@ -39,6 +38,20 @@ type API struct {
 
 	// LoginAttempt is rate limit configuration for specific email or login credentials.
 	LoginAttempt RateLimit `mapstructure:"login_attempt"`
+}
+
+// Server contains server related configuration.
+type Server struct {
+	// Addr is the address for the app to listen on.
+	Addr string
+
+	// CertFile is server's SSL certificate, if both this and a key is set, server will run
+	// using HTTPS.
+	CertFile string `mapstructure:"ssl_cert_file"`
+
+	// KeyFile is server's SSL certificate key, if both this and a certificate is set, server will
+	// run using HTTPS.
+	KeyFile string `mapstructure:"ssl_key_file"`
 }
 
 // RateLimit contains rate limit configuration for a specific endpoint or group of endpoints.

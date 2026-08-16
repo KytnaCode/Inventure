@@ -1,2 +1,6 @@
 debug: true
-addr: 0.0.0.0:3000
+
+server:
+  addr: 0.0.0.0:3000
+  ssl_cert_file: server.crt
+  ssl_key_file: server.key
