@@ -2,10 +2,14 @@ package config
 
 // Configuration defaults.
 const (
+	DefaultDebug                         = false
+	DefaultAddr                          = "0.0.0.0:80"
 	DefaultPasswordAuthRequestLimit      = 15
 	DefaultPasswordAuthTimeWindowSeconds = 60
 	DefaultLoginAttemptLimit             = 10
 	DefaultLoginAttemptTimeWindowSeconds = 300
+	DefaultDBType                        = "sqlite"
+	DefaultSqliteConnectionString        = "./app.db"
 )
 
 // Config represents app's configuration.
@@ -25,32 +29,28 @@ type Config struct {
 type API struct {
 	// TrustedProxies is a list of trusted CIDR prefixes, if none the application will assume
 	// is directly exposed to internet.
-	TrustedProxies []string
+	TrustedProxies []string `mapstructure:"trusted_proxies"`
 
 	// DisableRateLimit disables included rate limit, set if using a reverse proxy for rate limiting.
-	DisableRateLimit bool
+	DisableRateLimit bool `mapstructure:"disable_rate_limit"`
 
-	// PasswordAuthRequestLimit request limit for password-based authentication, independent from
-	// email address. Set this or [PasswordAuthTimeWindowSeconds] to 0 to disable raw rate
-	// limiting for authentication endpoints, alternatively set [DisableRateLimit] to disable rate
-	// limiting globally.
-	PasswordAuthRequestLimit int
+	// PasswordAuth is raw rate limit configuration for password-based authentication.
+	PasswordAuth RateLimit `mapstructure:"password_auth"`
 
-	// PasswordAuthTimeWindowSeconds is the time window in seconds for that
-	// [PasswordAuthRequestLimit] applies. Set this or [PasswordAuthRequestLimit] to 0 to disable raw
-	// rate limiting for authentication endpoints, alternatively set [DisableRateLimit] to disable
-	// rate limiting globally.
-	PasswordAuthTimeWindowSeconds int
+	// LoginAttempt is rate limit configuration for specific email or login credentials.
+	LoginAttempt RateLimit `mapstructure:"login_attempt"`
+}
 
-	// LoginAttemptLimit is the limit of login or sign up attempts for a specific email address.
-	// set this or [LoginAttemptTimeWindowSeconds] to 0 to disable login attempt limit, alternatively
-	// set [DisableRateLimit] to disable rate limiting globally.
-	LoginAttemptLimit int
+// RateLimit contains rate limit configuration for a specific endpoint or group of endpoints.
+type RateLimit struct {
+	// Set this or [TimeWindowSeconds] to 0 to disable rate limiting for endpoints using this,
+	// configuration, alternatively set [DisableRateLimit] to disable rate limiting globally.
+	RequestLimit int `mapstructure:"request_limit"`
 
-	// LoginAttemptTimeWindowSeconds is the time window in seconds for that [LoginAttemptLimit]
-	// applies. Set this or [LoginAttemptLimit] to 0 to disable login attempt limit, alternatively
-	// set [DisableRateLimit] to disable rate limiting globally.
-	LoginAttemptTimeWindowSeconds int
+	// TimeWindowSeconds is the time window in seconds for that [RequestLimit] applies. Set this
+	// or [RequestLimit] to 0 to disable rate limiting for endpoints using this configuration,
+	// alternatively set [DisableRateLimit] to disable rate limiting globally.
+	TimeWindowSeconds int `mapstructure:"time_window_seconds"`
 }
 
 // DatabaseSQLite is database type string for sqlite.
@@ -58,12 +58,12 @@ const DatabaseSQLite = "sqlite"
 
 // Database contains database configuration.
 type Database struct {
-	Typ string
+	Typ string `mapstructure:"type"`
 
 	SQLite SQLiteConfig
 }
 
 // SQLiteConfig contains sqlite specific configuration.
 type SQLiteConfig struct {
-	ConnectionString string
+	ConnectionString string `mapstructure:"connection_string"`
 }
