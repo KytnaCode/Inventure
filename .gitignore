@@ -29,3 +29,12 @@ go.work
 
 .envrc
 .direnv
+
+.env
+
+# Testing database.
+app.db 
+
+# Development TLS certificate.
+server.crt 
+server.key
