@@ -13,6 +13,8 @@
       default = pkgs.mkShell {
         buildInputs = with pkgs; [
           git
+          just
+          openssl_4_0
 
           # Go packages
           go
