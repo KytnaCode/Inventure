@@ -131,3 +131,50 @@ func TestRequireCSRFShouldReturnErrorOnMissingTokenHeader(t *testing.T) {
 		t.Errorf("expected a nil error code: got '%v'", *resp.Code)
 	}
 }
+
+func TestRequireCSRFShouldPassNextHandlerOnCorrectCSRFToken(t *testing.T) {
+	t.Parallel()
+
+	const expectedStatusCode = http.StatusOK
+
+	m := newSessionManager()
+
+	mux := http.NewServeMux()
+
+	mux.HandleFunc("GET /csrf", csrf.HandleCSRF(m))
+
+	// Automatically return 200 status.
+	handler := http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {})
+
+	mux.Handle("POST /", csrf.RequireCSRF(m)(handler))
+
+	client, serv := testutil.NewCookieTLSServer(t, m.LoadAndSave(mux))
+	defer serv.Close()
+
+	csrfURL := testutil.JoinURL(t, serv.URL, "/csrf")
+
+	res, err := client.Get(csrfURL)
+	if err != nil {
+		t.Fatalf("could not get csrf token")
+	}
+
+	tok := res.Header.Get(csrf.HeaderCSRF)
+
+	req, err := http.NewRequest(http.MethodPost, serv.URL, nil)
+	if err != nil {
+		t.Fatalf("could not create new request object: %v", err)
+	}
+
+	req.Header.Set(csrf.HeaderCSRF, tok)
+
+	res, err = client.Do(req)
+	if err != nil {
+		t.Fatalf("could not make request to test server: %v", err)
+	}
+
+	if got := res.StatusCode; got != expectedStatusCode {
+		testutil.PrintStatusCode(t, got, expectedStatusCode)
+
+		t.Fail()
+	}
+}

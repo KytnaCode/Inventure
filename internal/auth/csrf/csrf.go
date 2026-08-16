@@ -77,7 +77,16 @@ func RequireCSRF(m *scs.SessionManager) func(next http.Handler) http.Handler {
 	}
 }
 
-// InjectToken embeds a new CSRF token in request's session.
-func InjectToken(m *scs.SessionManager, r *http.Request) {
-	m.Put(r.Context(), KeyCSRFToken, generateToken())
+// InjectToken embeds a new CSRF token in request's session if doesn't already exists and returns
+// it.
+func InjectToken(m *scs.SessionManager, r *http.Request) string {
+	if m.Exists(r.Context(), KeyCSRFToken) {
+		return m.GetString(r.Context(), KeyCSRFToken)
+	}
+
+	tok := generateToken()
+
+	m.Put(r.Context(), KeyCSRFToken, tok)
+
+	return tok
 }
