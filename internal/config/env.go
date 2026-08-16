@@ -27,7 +27,7 @@ const (
 
 	// API
 	EnvTrustedProxies                = EnvAPIPrefix + "TRUSTED_PROXIES"
-	EnvEnableRateLimit               = EnvAPIPrefix + "RATE_LIMIT_ENABLE"
+	EnvDisableRateLimit              = EnvAPIPrefix + "RATE_LIMIT_DISABLE"
 	EnvPasswordAuthRequestLimit      = EnvAPIPrefix + "PASSWORD_AUTH_REQUEST_LIMIT"
 	EnvPasswordAuthTimeWindowSeconds = EnvAPIPrefix + "PASSWORD_AUTH_TIME_WINDOW_SECONDS"
 	EnvLoginAttemptLimit             = EnvAPIPrefix + "LOGIN_ATTEMPT_LIMIT"
@@ -47,7 +47,7 @@ func FromEnv() *Config {
 		Debug: envExists(EnvDebug),
 		API: API{
 			TrustedProxies:                strings.Split(os.Getenv(EnvTrustedProxies), ","),
-			DisableRateLimit:              envExists(EnvEnableRateLimit),
+			DisableRateLimit:              envExists(EnvDisableRateLimit),
 			PasswordAuthRequestLimit:      intOrDefault(EnvPasswordAuthRequestLimit),
 			PasswordAuthTimeWindowSeconds: intOrDefault(EnvPasswordAuthTimeWindowSeconds),
 			LoginAttemptLimit:             intOrDefault(EnvLoginAttemptLimit),
