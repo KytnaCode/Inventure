@@ -1,7 +1,7 @@
 certFile := "server.crt"
 keyFile := "server.key"
 
-init: gen-sll copy-conf
+init: gen-ssl copy-conf
 
 gen-ssl:
   openssl req -x509 -noenc \
