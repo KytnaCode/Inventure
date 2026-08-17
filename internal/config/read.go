@@ -19,7 +19,8 @@ func Read() (*Config, error) {
 	viper.AddConfigPath(".")
 
 	viper.SetDefault("debug", DefaultDebug)
-	viper.SetDefault("addr", DefaultAddr)
+
+	viper.SetDefault("server.addr", DefaultAddr)
 
 	viper.SetDefault("api.trusted_proxies", []string{})
 	viper.SetDefault("api.password_auth.request_limit", DefaultPasswordAuthRequestLimit)
