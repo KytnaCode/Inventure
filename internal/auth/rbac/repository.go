@@ -12,8 +12,13 @@ import (
 	"gorm.io/gorm"
 )
 
-// ErrInvalidScopeString is returned if scope field is malformed in the database.
-var ErrInvalidScopeString = errors.New("invalid scope string format")
+var (
+	// ErrInvalidScopeString is returned if scope field is malformed in the database.
+	ErrInvalidScopeString = errors.New("invalid scope string format")
+
+	// ErrRoleNotFound is returned when a given record could not be found.
+	ErrRoleNotFound = errors.New("role not found")
+)
 
 // ScopeString is a list of scopes. Implements [sql.Scanner] and [sql/driver.Valuer] to marshal
 // and unmarshal to and from a string of comma separated elements.
@@ -39,12 +44,8 @@ func (s *ScopeString) Scan(src any) error {
 }
 
 // Value implements [sql/driver.Valuer].
-func (s *ScopeString) Value() (driver.Value, error) {
-	if s == nil {
-		return "", nil
-	}
-
-	return strings.Join(*s, ","), nil
+func (s ScopeString) Value() (driver.Value, error) {
+	return strings.Join(s, ","), nil
 }
 
 // CreateRoleData is the data necessary to create a new role.
@@ -73,6 +74,21 @@ type Model struct {
 // TableName implements [gorm/schema.Tabler].
 func (m *Model) TableName() string {
 	return "roles"
+}
+
+// ToDomain converts a [Model] into a [Role].
+func (m *Model) ToDomain() *Role {
+	scopes := make([]Scope, 0, len(m.Scopes))
+
+	for _, v := range m.Scopes {
+		scopes = append(scopes, Scope(v))
+	}
+
+	return &Role{
+		ID:     m.ID.String(),
+		Name:   m.Name,
+		Scopes: scopes,
+	}
 }
 
 // Repository handles persistence logic for roles.
@@ -112,4 +128,20 @@ func (r *Repository) CreateRole(ctx context.Context, data *CreateRoleData) (id s
 	}
 
 	return m.ID.String(), nil
+}
+
+// GetRoleByID returns a role with the given ID, if not found returns [ErrRoleNotFound].
+func (r *Repository) GetRoleByID(ctx context.Context, id string) (*Role, error) {
+	m, err := r.table.Where("id = ?", id).Take(ctx)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrRoleNotFound
+		}
+
+		return nil, fmt.Errorf("could not get role by id: %w", err)
+	}
+
+	role := m.ToDomain()
+
+	return role, nil
 }
