@@ -29,7 +29,6 @@ type Config struct {
 	RequestLimit          int
 	TimeWindow            time.Duration
 	Validator             *validator.Validate
-	RedirectURL           string
 }
 
 // Routes handle password based authentication routes.
