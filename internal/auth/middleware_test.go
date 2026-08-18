@@ -1,4 +1,4 @@
-package middleware_test
+package auth_test
 
 import (
 	"net/http"
@@ -7,8 +7,7 @@ import (
 	"time"
 
 	"github.com/alexedwards/scs/v2"
-	"github.com/kytnacode/inventure/internal/auth/middleware"
-	"github.com/kytnacode/inventure/internal/auth/session"
+	"github.com/kytnacode/inventure/internal/auth"
 	"github.com/kytnacode/inventure/internal/testutil"
 )
 
@@ -34,7 +33,7 @@ func TestRequireAuthShouldReturnUnauthorizedResponse(t *testing.T) {
 
 	handler := http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {})
 
-	m.LoadAndSave(middleware.RequireAuth(m)(handler)).ServeHTTP(w, req)
+	m.LoadAndSave(auth.RequireAuth(m)(handler)).ServeHTTP(w, req)
 
 	res := w.Result()
 
@@ -55,14 +54,14 @@ func TestRequireAuthShouldPassNextHandler(t *testing.T) {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("POST /login", func(_ http.ResponseWriter, r *http.Request) {
-		m.Put(r.Context(), session.KeySessionData, &session.Session{
+		m.Put(r.Context(), auth.KeySessionData, &auth.Session{
 			ID: "my-super-real-id",
 		})
 	})
 
 	handler := http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {})
 
-	mux.Handle("GET /", middleware.RequireAuth(m)(handler))
+	mux.Handle("GET /", auth.RequireAuth(m)(handler))
 
 	client, serv := testutil.NewCookieTLSServer(t, m.LoadAndSave(mux))
 	defer serv.Close()

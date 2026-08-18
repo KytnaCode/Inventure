@@ -7,10 +7,10 @@ import (
 	"time"
 
 	"github.com/alexedwards/scs/v2"
-	"github.com/kytnacode/inventure/internal/auth/csrf"
 	"github.com/kytnacode/inventure/internal/testutil"
 	"github.com/kytnacode/inventure/internal/web"
 	"github.com/kytnacode/inventure/pkg/api"
+	"github.com/kytnacode/inventure/pkg/api/csrf"
 )
 
 func newSessionManager() *scs.SessionManager {

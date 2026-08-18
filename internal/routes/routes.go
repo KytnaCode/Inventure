@@ -7,8 +7,8 @@ import (
 	"github.com/alexedwards/scs/v2"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-	"github.com/kytnacode/inventure/internal/auth/csrf"
-	authroutes "github.com/kytnacode/inventure/internal/auth/routes"
+	"github.com/kytnacode/inventure/internal/auth"
+	"github.com/kytnacode/inventure/pkg/api/csrf"
 	"github.com/kytnacode/inventure/pkg/logging"
 )
 
@@ -18,7 +18,7 @@ type Config struct {
 	IPMiddleware             func(next http.Handler) http.Handler
 	EmbeddedLoggerMiddelware func(next http.Handler) http.Handler
 	SessionManager           *scs.SessionManager
-	AuthRoutes               *authroutes.Routes
+	AuthRoutes               *auth.Routes
 }
 
 // HealthCheck is a health check handler.
