@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/spf13/viper"
 )
@@ -10,7 +11,9 @@ import (
 func Read() (*Config, error) {
 	viper.SetConfigName("config")
 
-	viper.SetEnvPrefix("inventure")
+	lowerCaseTrimmedPrefix := strings.ToLower(strings.TrimRight(EnvPrefix, "_"))
+
+	viper.SetEnvPrefix(lowerCaseTrimmedPrefix)
 
 	viper.AddConfigPath("/etc/inventure")
 	viper.AddConfigPath("$XDG_CONFIG_HOME/inventure")

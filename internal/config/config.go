@@ -1,5 +1,8 @@
 package config
 
+// EnvPrefix is the prefix used for configuration environment variables.
+const EnvPrefix = "INVENTURE_"
+
 // Configuration defaults.
 const (
 	DefaultDebug                         = false
@@ -11,6 +14,16 @@ const (
 	DefaultDBType                        = "sqlite"
 	DefaultSqliteConnectionString        = "./app.db"
 )
+
+// Environment contains configuration options that only can be configured via environment
+// variables, such as API keys, users or passwords.
+type Environment struct {
+	// AdminUser is the super admin user name.
+	AdminUser string
+
+	// AdminPass is the super admin user password.
+	AdminPass string
+}
 
 // Config represents app's configuration.
 type Config struct {
