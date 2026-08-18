@@ -22,8 +22,6 @@ import (
 	"gorm.io/gorm"
 )
 
-const redirectLocation = "/"
-
 func newRoutes(t *testing.T) (
 	*routes.Routes,
 	gorm.Interface[userrepository.User],
@@ -62,7 +60,6 @@ func newRoutes(t *testing.T) (
 		UserRepo:              userRepo,
 		LoginAttemptLimit:     5,
 		LoginAttempTimeWindow: time.Minute,
-		RedirectURL:           redirectLocation,
 	}
 
 	return routes.New(conf), g, &session
@@ -86,12 +83,6 @@ func TestRoutes_SignUpShouldStoreUser(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	sessionManager.LoadAndSave(http.HandlerFunc(ro.SignUp)).ServeHTTP(w, req)
-
-	res := w.Result()
-
-	if got := res.Header.Get("Location"); got != redirectLocation {
-		t.Errorf("expected location to be '%v': got '%v'", redirectLocation, got)
-	}
 
 	got, err := g.Where("email = ?", data.Email).First(t.Context())
 	if err != nil {
@@ -369,7 +360,7 @@ func TestRoutes_SignInShouldReturnWrongCredentialsError(t *testing.T) {
 func TestRoutes_SignInShouldStoreUserInSession(t *testing.T) {
 	t.Parallel()
 
-	const expectedStatusCode = http.StatusTemporaryRedirect
+	const expectedStatusCode = http.StatusOK
 
 	const (
 		userEmail = "amity.blight@toh.com"
