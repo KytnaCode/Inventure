@@ -105,8 +105,6 @@ func (ro *Routes) SignUp(w http.ResponseWriter, r *http.Request) {
 	ro.conf.SessionManager.Put(r.Context(), session.KeySessionData, &session.Session{
 		ID: id,
 	})
-
-	http.Redirect(w, r, ro.conf.RedirectURL, http.StatusTemporaryRedirect)
 }
 
 // SignIn is the handler for password-based sign in.
@@ -149,8 +147,6 @@ func (ro *Routes) SignIn(w http.ResponseWriter, r *http.Request) {
 	ro.conf.SessionManager.Put(r.Context(), session.KeySessionData, &session.Session{
 		ID: id,
 	})
-
-	http.Redirect(w, r, ro.conf.RedirectURL, http.StatusTemporaryRedirect)
 }
 
 // SetupRouter set ups authentication router. If `RequestLimit` or `TimeWindow` are set to zero
