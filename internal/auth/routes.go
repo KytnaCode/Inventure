@@ -1,4 +1,4 @@
-package routes
+package auth
 
 import (
 	"context"
@@ -11,18 +11,39 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/httprate"
 	"github.com/go-playground/validator/v10"
-	"github.com/kytnacode/inventure/internal/auth/csrf"
-	"github.com/kytnacode/inventure/internal/auth/session"
-	userrepository "github.com/kytnacode/inventure/internal/user/repository"
+	"github.com/kytnacode/inventure/internal/user"
 	"github.com/kytnacode/inventure/internal/web"
 	"github.com/kytnacode/inventure/pkg/api"
+	"github.com/kytnacode/inventure/pkg/api/csrf"
 	"github.com/kytnacode/inventure/pkg/logging"
 	"github.com/kytnacode/inventure/pkg/passhash"
 )
 
-// Config is the configuration for authentication routes.
-type Config struct {
-	UserRepo              *userrepository.Repository
+// SignUpDto is the necessary data for a new user to sign up with password-based authentication.
+// For validation rules see [user/repository.User].
+type SignUpDto struct {
+	// Name is user's display name.
+	Name string `json:"name" validate:"required"`
+
+	// Email is user's email.
+	Email string `json:"email" validate:"required,email"`
+
+	// Password is user's password in clear text.
+	Password string `json:"password" validate:"required"`
+}
+
+// SignInDto is the necessary data for a user to sign in with password-based authentication.
+type SignInDto struct {
+	// Email is user's email.
+	Email string `json:"email" validate:"required,email"`
+
+	// Password is user's password in clear text.
+	Password string `json:"password" validate:"required"`
+}
+
+// RoutesConfig is the configuration for authentication routes.
+type RoutesConfig struct {
+	UserRepo              *user.Repository
 	LoginAttemptLimit     int
 	LoginAttempTimeWindow time.Duration
 	SessionManager        *scs.SessionManager
@@ -33,12 +54,12 @@ type Config struct {
 
 // Routes handle password based authentication routes.
 type Routes struct {
-	conf         *Config
+	conf         *RoutesConfig
 	loginLimiter *httprate.RateLimiter
 }
 
-// New creates a new [Routes].
-func New(conf *Config) *Routes {
+// NewRoutes creates a new [Routes].
+func NewRoutes(conf *RoutesConfig) *Routes {
 	limiter := new(httprate.RateLimiter)
 
 	if conf.LoginAttemptLimit != 0 && conf.LoginAttempTimeWindow != 0 {
@@ -58,11 +79,11 @@ func New(conf *Config) *Routes {
 func (ro *Routes) SignUp(w http.ResponseWriter, r *http.Request) {
 	api.AcceptJSON(w)
 
-	r = withLogger(r, "auth/routes/Routes.SignUp")
+	r = ro.withLogger(r, "auth/routes/Routes.SignUp")
 
-	data := new(SignUpData)
+	data := new(SignUpDto)
 
-	ok := decodeData(w, r, data)
+	ok := ro.decodeData(w, r, data)
 	if !ok {
 		return
 	}
@@ -80,7 +101,7 @@ func (ro *Routes) SignUp(w http.ResponseWriter, r *http.Request) {
 
 	hash := passhash.Hash([]byte(data.Password))
 
-	model := &userrepository.User{
+	model := &user.Model{
 		Name:         data.Name,
 		Email:        data.Email,
 		PasswordHash: &hash,
@@ -91,17 +112,17 @@ func (ro *Routes) SignUp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	id, ok := signUpUser(r.Context(), w, ro.conf.UserRepo, model, hash)
+	id, ok := ro.signUpUser(r.Context(), w, model, hash)
 	if !ok {
 		return
 	}
 
-	ok = destroyExistingSession(r.Context(), w, ro.conf.SessionManager)
+	ok = ro.destroyExistingSession(r.Context(), w)
 	if !ok {
 		return
 	}
 
-	ro.conf.SessionManager.Put(r.Context(), session.KeySessionData, &session.Session{
+	ro.conf.SessionManager.Put(r.Context(), KeySessionData, &Session{
 		ID: id,
 	})
 }
@@ -110,11 +131,11 @@ func (ro *Routes) SignUp(w http.ResponseWriter, r *http.Request) {
 func (ro *Routes) SignIn(w http.ResponseWriter, r *http.Request) {
 	api.AcceptJSON(w)
 
-	r = withLogger(r, "auth/routes/Routes.SignIn")
+	r = ro.withLogger(r, "auth/routes/Routes.SignIn")
 
-	data := new(SignInData)
+	data := new(SignInDto)
 
-	ok := decodeData(w, r, data)
+	ok := ro.decodeData(w, r, data)
 	if !ok {
 		return
 	}
@@ -130,7 +151,7 @@ func (ro *Routes) SignIn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	id := signInUser(r.Context(), w, ro.conf.UserRepo, &userrepository.SignInUserData{
+	id := ro.signInUser(r.Context(), w, &user.SignInData{
 		Email:         data.Email,
 		ClearPassword: data.Password,
 	})
@@ -138,18 +159,18 @@ func (ro *Routes) SignIn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ok = destroyExistingSession(r.Context(), w, ro.conf.SessionManager)
+	ok = ro.destroyExistingSession(r.Context(), w)
 	if !ok {
 		return
 	}
 
-	ro.conf.SessionManager.Put(r.Context(), session.KeySessionData, &session.Session{
+	ro.conf.SessionManager.Put(r.Context(), KeySessionData, &Session{
 		ID: id,
 	})
 }
 
 // SetupRouter set ups authentication router. If `RequestLimit` or `TimeWindow` are set to zero
-// value in the given [Config], then, no rate limit will be applied.
+// value in the given [RoutesConfig], then, no rate limit will be applied.
 func (ro *Routes) SetupRouter() http.Handler {
 	r := chi.NewRouter()
 
@@ -166,7 +187,7 @@ func (ro *Routes) SetupRouter() http.Handler {
 	return r
 }
 
-func withLogger(r *http.Request, handler string) *http.Request {
+func (ro *Routes) withLogger(r *http.Request, handler string) *http.Request {
 	logger := logging.FromCtx(r.Context())
 
 	logger = logger.With(logging.Handler(handler))
@@ -176,7 +197,7 @@ func withLogger(r *http.Request, handler string) *http.Request {
 	return r.WithContext(ctx)
 }
 
-func decodeData(w http.ResponseWriter, r *http.Request, data any) (ok bool) {
+func (ro *Routes) decodeData(w http.ResponseWriter, r *http.Request, data any) (ok bool) {
 	logger := logging.FromCtx(r.Context())
 
 	if err := json.NewDecoder(r.Body).Decode(data); err != nil {
@@ -197,16 +218,15 @@ func decodeData(w http.ResponseWriter, r *http.Request, data any) (ok bool) {
 	return true
 }
 
-func signUpUser(
+func (ro *Routes) signUpUser(
 	ctx context.Context,
 	w http.ResponseWriter,
-	userRepo *userrepository.Repository,
-	model *userrepository.User,
+	model *user.Model,
 	passHash string,
 ) (id string, ok bool) {
 	logger := logging.FromCtx(ctx)
 
-	id, err := userRepo.SignUpUser(ctx, &userrepository.SignUpUserData{
+	id, err := ro.conf.UserRepo.SignUp(ctx, &user.SignUpData{
 		Email:        model.Email,
 		Name:         model.Name,
 		PasswordHash: passHash,
@@ -227,17 +247,16 @@ func signUpUser(
 	return id, true
 }
 
-func signInUser(
+func (ro *Routes) signInUser(
 	ctx context.Context,
 	w http.ResponseWriter,
-	repo *userrepository.Repository,
-	data *userrepository.SignInUserData,
+	data *user.SignInData,
 ) (id string) {
 	logger := logging.FromCtx(ctx)
 
-	id, err := repo.SignInUser(ctx, data)
+	id, err := ro.conf.UserRepo.SignIn(ctx, data)
 	if err != nil {
-		if errors.Is(err, userrepository.ErrUserNotFound) {
+		if errors.Is(err, user.ErrUserNotFound) {
 			logger.Warn("user not found", logging.Error(err))
 
 			w.WriteHeader(http.StatusNotFound)
@@ -250,7 +269,7 @@ func signInUser(
 			return ""
 		}
 
-		if errors.Is(err, userrepository.ErrNotPasswordAuth) {
+		if errors.Is(err, user.ErrNotPasswordAuth) {
 			logger.Warn("user doesn't support password based authentication", logging.Error(err))
 
 			w.WriteHeader(http.StatusBadRequest)
@@ -268,7 +287,7 @@ func signInUser(
 			return ""
 		}
 
-		if errors.Is(err, userrepository.ErrWrongCredentials) {
+		if errors.Is(err, user.ErrWrongCredentials) {
 			logger.Warn("user attempt to sign in with wrong credentials", logging.Error(err))
 
 			w.WriteHeader(http.StatusUnauthorized)
@@ -301,14 +320,13 @@ func signInUser(
 	return id
 }
 
-func destroyExistingSession(
+func (ro *Routes) destroyExistingSession(
 	ctx context.Context,
 	w http.ResponseWriter,
-	m *scs.SessionManager,
 ) (ok bool) {
 	logger := logging.FromCtx(ctx)
 
-	err := m.Destroy(ctx)
+	err := ro.conf.SessionManager.Destroy(ctx)
 	if err != nil {
 		logger.Error("could not destroy session", logging.Error(err))
 

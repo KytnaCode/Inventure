@@ -1,18 +1,18 @@
-package repository_test
+package user_test
 
 import (
 	"errors"
 	"path"
 	"testing"
 
-	"github.com/kytnacode/inventure/internal/user/repository"
+	"github.com/kytnacode/inventure/internal/user"
 	"github.com/kytnacode/inventure/pkg/validation"
 	"gorm.io/datatypes"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
-func newSqliteRepo(t *testing.T) (*repository.Repository, gorm.Interface[repository.User]) {
+func newSqliteRepo(t *testing.T) (*user.Repository, gorm.Interface[user.Model]) {
 	t.Helper()
 
 	dbPath := path.Join(t.TempDir(), "test.db")
@@ -22,13 +22,13 @@ func newSqliteRepo(t *testing.T) (*repository.Repository, gorm.Interface[reposit
 		t.Fatalf("could not open database: %v", err)
 	}
 
-	if err := db.AutoMigrate(repository.User{}); err != nil {
+	if err := db.AutoMigrate(user.Model{}); err != nil {
 		t.Fatalf("could not migrate user's schema: %v", err)
 	}
 
-	table := gorm.G[repository.User](db)
+	table := gorm.G[user.Model](db)
 
-	repo := repository.New(table, validation.New())
+	repo := user.NewRepository(table, validation.New())
 
 	return repo, table
 }
@@ -37,7 +37,7 @@ func TestRepositorySqliteShouldCreateUser(t *testing.T) {
 	t.Parallel()
 
 	//nolint:gosec // fake credentials.
-	data := repository.SignUpUserData{
+	data := user.SignUpData{
 		Name:         "my user name",
 		Email:        "my-user@email.com",
 		PasswordHash: "$argon2id$v=19$m=65536,t=3,p=4$uiOyD7yhvKuJwK2B+mYX9w$ZwOB3SQDZWgSI17gaRUJ5Slzr5SH8XErpN/ihlacVR8",
@@ -45,7 +45,7 @@ func TestRepositorySqliteShouldCreateUser(t *testing.T) {
 
 	repo, table := newSqliteRepo(t)
 
-	id, err := repo.SignUpUser(t.Context(), &data)
+	id, err := repo.SignUp(t.Context(), &data)
 	if err != nil {
 		t.Fatalf("could not create user: %v", err)
 	}
@@ -81,7 +81,7 @@ func TestRepository_SignInShouldReturnUserNotFoundSqlite(t *testing.T) {
 
 	r, _ := newSqliteRepo(t)
 
-	id, err := r.SignInUser(t.Context(), &repository.SignInUserData{
+	id, err := r.SignIn(t.Context(), &user.SignInData{
 		Email:         "super-real@email.com",
 		ClearPassword: "my-super-real-password",
 	})
@@ -93,7 +93,7 @@ func TestRepository_SignInShouldReturnUserNotFoundSqlite(t *testing.T) {
 		t.Fatal("exected a non-nil error")
 	}
 
-	if !errors.Is(err, repository.ErrUserNotFound) {
+	if !errors.Is(err, user.ErrUserNotFound) {
 		t.Fatalf("expected user not found error: got '%v'", err)
 	}
 }
@@ -103,7 +103,7 @@ func TestRepository_SignInShouldReturnNoPasswordAuthErrorSqlite(t *testing.T) {
 
 	r, g := newSqliteRepo(t)
 
-	u := repository.User{
+	u := user.Model{
 		ID:    datatypes.NewUUIDv4(),
 		Name:  "My user name",
 		Email: "my-user@email.com",
@@ -115,7 +115,7 @@ func TestRepository_SignInShouldReturnNoPasswordAuthErrorSqlite(t *testing.T) {
 		t.Fatalf("could not insert new user: %v", err)
 	}
 
-	id, err := r.SignInUser(t.Context(), &repository.SignInUserData{
+	id, err := r.SignIn(t.Context(), &user.SignInData{
 		Email:         u.Email,
 		ClearPassword: "some random password",
 	})
@@ -127,7 +127,7 @@ func TestRepository_SignInShouldReturnNoPasswordAuthErrorSqlite(t *testing.T) {
 		t.Fatal("expected a non-nil error")
 	}
 
-	if !errors.Is(err, repository.ErrNotPasswordAuth) {
+	if !errors.Is(err, user.ErrNotPasswordAuth) {
 		t.Errorf("expected not password auth error: got '%v'", err)
 	}
 }
@@ -140,7 +140,7 @@ func TestRepository_SignInShouldReturnWrongCredentialsErrorSqlite(t *testing.T) 
 
 	const otherPassword = "luz-noceda"
 
-	u := repository.User{
+	u := user.Model{
 		Name:         "my valid user name",
 		Email:        "my-valid@email.com",
 		PasswordHash: &actualHash,
@@ -153,7 +153,7 @@ func TestRepository_SignInShouldReturnWrongCredentialsErrorSqlite(t *testing.T) 
 		t.Fatalf("could not create test user: %v", err)
 	}
 
-	id, err := r.SignInUser(t.Context(), &repository.SignInUserData{
+	id, err := r.SignIn(t.Context(), &user.SignInData{
 		Email:         u.Email,
 		ClearPassword: otherPassword,
 	})
@@ -165,7 +165,7 @@ func TestRepository_SignInShouldReturnWrongCredentialsErrorSqlite(t *testing.T) 
 		t.Fatal("expected a non-nil error")
 	}
 
-	if !errors.Is(err, repository.ErrWrongCredentials) {
+	if !errors.Is(err, user.ErrWrongCredentials) {
 		t.Errorf("expected wrong credentials error: got '%v'", err)
 	}
 }

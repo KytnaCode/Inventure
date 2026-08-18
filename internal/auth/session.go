@@ -1,20 +1,31 @@
-package session
+package auth
 
 import (
+	"encoding/gob"
 	"net/http"
 	"time"
 
 	"github.com/alexedwards/scs/v2"
 )
 
-// ManagerConfig is the configuration for [NewManager].
-type ManagerConfig struct {
+const KeySessionData = "session-data"
+
+type Session struct {
+	ID string
+}
+
+func init() {
+	gob.Register(&Session{})
+}
+
+// SessionStoreConfig is the configuration for [NewManager].
+type SessionStoreConfig struct {
 	Domain      string
 	IdleTimeout time.Duration
 }
 
 // NewManager creates a new [scs.SessionManager].
-func NewManager(conf *ManagerConfig) *scs.SessionManager {
+func NewManager(conf *SessionStoreConfig) *scs.SessionManager {
 	m := scs.New()
 	m.Cookie.HttpOnly = true
 	m.Cookie.Domain = conf.Domain

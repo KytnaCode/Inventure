@@ -1,9 +1,10 @@
-package repository
+package user
 
 import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/kytnacode/inventure/pkg/passhash"
@@ -23,9 +24,31 @@ var (
 	ErrWrongCredentials = errors.New("wrong email or password")
 )
 
-// SignUpUserData is the necessary data to create a new user with password based authentication
-// using [Repository.SignUpUser]. For validation rules see [repository.User].
-type SignUpUserData struct {
+// User is the user's database model. For the domain object see [user.User].
+type Model struct {
+	gorm.Model
+
+	ID datatypes.UUID `gorm:"primaryKey"`
+
+	// TODO: Allow Unicode alphabetic characters.
+	// Name is user display name.
+	Name string `validate:"required,min=3,max=80,alphanumspace"`
+
+	Email string `validate:"required,email"`
+
+	PasswordHash *string
+
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+func (m *Model) TableName() string {
+	return "users"
+}
+
+// SignUpData is the necessary data to create a new user with password based authentication
+// using [Repository.SignUp]. For validation rules see [repository.User].
+type SignUpData struct {
 	// Name is user display name.
 	Name string
 
@@ -36,29 +59,32 @@ type SignUpUserData struct {
 	PasswordHash string
 }
 
-// SignInUserData is the necessary data for a user to sign in.
-type SignInUserData struct {
-	Email         string
+// SignInData is the necessary data for a user to sign in.
+type SignInData struct {
+	// Email is user email.
+	Email string
+
+	// ClearPassword is the password in clear text.
 	ClearPassword string
 }
 
 // Repository handles user related business logic.
 type Repository struct {
-	table gorm.Interface[User]
+	table gorm.Interface[Model]
 	v     *validator.Validate
 }
 
-// New creates a new [Repository].
-func New(db gorm.Interface[User], v *validator.Validate) *Repository {
+// NewRepository creates a new [Repository].
+func NewRepository(db gorm.Interface[Model], v *validator.Validate) *Repository {
 	return &Repository{
 		table: db,
 		v:     v,
 	}
 }
 
-// SignUpUser creates a new user with password based authentication.
-func (r *Repository) SignUpUser(ctx context.Context, data *SignUpUserData) (id string, err error) {
-	m := &User{
+// SignUp creates a new user with password based authentication.
+func (r *Repository) SignUp(ctx context.Context, data *SignUpData) (id string, err error) {
+	m := &Model{
 		ID:           datatypes.NewUUIDv4(),
 		Name:         data.Name,
 		Email:        data.Email,
@@ -77,13 +103,13 @@ func (r *Repository) SignUpUser(ctx context.Context, data *SignUpUserData) (id s
 	return m.ID.String(), nil
 }
 
-// SignInUser search for a user by the given data and verifies its credentials, if credentials
+// SignIn search for a user by the given data and verifies its credentials, if credentials
 // are valid and no error occurs, then its id is returned.
 //
 // If the user cannot be found, [ErrUserNotFound] is returned, if user account doesn't support
 // password-based authentication, [ErrNotPasswordAuth] is returned, at last, if user was found
 // but their credentials don't match, [ErrWrongCredentials] is returned.
-func (r *Repository) SignInUser(ctx context.Context, data *SignInUserData) (id string, err error) {
+func (r *Repository) SignIn(ctx context.Context, data *SignInData) (id string, err error) {
 	u, err := r.table.Where("email = ?", data.Email).Take(ctx)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {

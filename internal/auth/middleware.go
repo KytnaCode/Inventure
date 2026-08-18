@@ -1,11 +1,9 @@
-// Package middleware implements authentication and authorization middleware.
-package middleware
+package auth
 
 import (
 	"net/http"
 
 	"github.com/alexedwards/scs/v2"
-	"github.com/kytnacode/inventure/internal/auth/session"
 	"github.com/kytnacode/inventure/pkg/api"
 	"github.com/kytnacode/inventure/pkg/logging"
 )
@@ -19,7 +17,7 @@ func RequireAuth(m *scs.SessionManager) func(next http.Handler) http.Handler {
 
 			logger = logger.With(logging.Middleware("auth/middleware.RequireAuth"))
 
-			data, ok := m.Get(r.Context(), session.KeySessionData).(*session.Session)
+			data, ok := m.Get(r.Context(), KeySessionData).(*Session)
 			if !ok || data == nil || data.ID == "" {
 				logger.Info("unauthorized request")
 

@@ -1,4 +1,4 @@
-package routes_test
+package auth_test
 
 import (
 	"context"
@@ -10,10 +10,9 @@ import (
 
 	"github.com/alexedwards/scs/v2"
 	"github.com/alexedwards/scs/v2/memstore"
-	"github.com/kytnacode/inventure/internal/auth/routes"
-	"github.com/kytnacode/inventure/internal/auth/session"
+	"github.com/kytnacode/inventure/internal/auth"
 	"github.com/kytnacode/inventure/internal/testutil"
-	userrepository "github.com/kytnacode/inventure/internal/user/repository"
+	"github.com/kytnacode/inventure/internal/user"
 	"github.com/kytnacode/inventure/internal/web"
 	"github.com/kytnacode/inventure/pkg/api"
 	"github.com/kytnacode/inventure/pkg/passhash"
@@ -23,8 +22,8 @@ import (
 )
 
 func newRoutes(t *testing.T) (
-	*routes.Routes,
-	gorm.Interface[userrepository.User],
+	*auth.Routes,
+	gorm.Interface[user.Model],
 	*scs.SessionManager,
 ) {
 	t.Helper()
@@ -42,17 +41,17 @@ func newRoutes(t *testing.T) (
 		t.Fatalf("could not create a test database: %v", err)
 	}
 
-	if err := db.AutoMigrate(userrepository.User{}); err != nil {
+	if err := db.AutoMigrate(user.Model{}); err != nil {
 		t.Fatalf("could not migrate test database: %v", err)
 	}
 
-	g := gorm.G[userrepository.User](db)
+	g := gorm.G[user.Model](db)
 
-	userRepo := userrepository.New(g, v)
+	userRepo := user.NewRepository(g, v)
 
 	session := *sessionManager
 
-	conf := &routes.Config{
+	conf := &auth.RoutesConfig{
 		Validator:             v,
 		SessionManager:        sessionManager,
 		RequestLimit:          10,
@@ -62,7 +61,7 @@ func newRoutes(t *testing.T) (
 		LoginAttempTimeWindow: time.Minute,
 	}
 
-	return routes.New(conf), g, &session
+	return auth.NewRoutes(conf), g, &session
 }
 
 func TestRoutes_SignUpShouldStoreUser(t *testing.T) {
@@ -70,7 +69,7 @@ func TestRoutes_SignUpShouldStoreUser(t *testing.T) {
 
 	ro, g, sessionManager := newRoutes(t)
 
-	data := routes.SignUpData{
+	data := auth.SignUpDto{
 		Name:     "my user name",
 		Email:    "my-user@email.com",
 		Password: "abcde",
@@ -101,7 +100,7 @@ func TestRoutes_SignUpShouldValidateData(t *testing.T) {
 		expectedStatusCode = http.StatusBadRequest
 	)
 
-	data := routes.SignUpData{
+	data := auth.SignUpDto{
 		// Missing name.
 		Email: "invalid-email",
 		// Missing password.
@@ -139,7 +138,7 @@ func TestRoutes_SignUpShouldStoreSessionData(t *testing.T) {
 
 	ro, _, sessionManager := newRoutes(t)
 
-	body := testutil.EncodeBody(t, routes.SignUpData{
+	body := testutil.EncodeBody(t, auth.SignUpDto{
 		Name:     "my valid user name",
 		Email:    "my-valid@email.com",
 		Password: "my-super-secret-and-valid-password",
@@ -156,7 +155,7 @@ func TestRoutes_SignUpShouldStoreSessionData(t *testing.T) {
 	var found bool
 
 	err := sessionManager.Iterate(ctx, func(sessCtx context.Context) error {
-		data, ok := sessionManager.Get(sessCtx, session.KeySessionData).(*session.Session)
+		data, ok := sessionManager.Get(sessCtx, auth.KeySessionData).(*auth.Session)
 		if !ok || data == nil {
 			t.Fatal("could not find stored session data")
 		}
@@ -190,7 +189,7 @@ func TestRoutes_SignInShouldReturnUserNotFound(t *testing.T) {
 
 	ro, _, sessionManager := newRoutes(t)
 
-	body := testutil.EncodeBody(t, routes.SignInData{
+	body := testutil.EncodeBody(t, auth.SignInDto{
 		Email:    "non-existing@email.com",
 		Password: "random-password123",
 	})
@@ -242,7 +241,7 @@ func TestRoutes_SignInShouldReturnNoPasswordAuthError(t *testing.T) {
 
 	ro, g, sessionManager := newRoutes(t)
 
-	u := &userrepository.User{
+	u := &user.Model{
 		Email: userEmail,
 		Name:  "username",
 		// No password hash.
@@ -253,7 +252,7 @@ func TestRoutes_SignInShouldReturnNoPasswordAuthError(t *testing.T) {
 		t.Fatalf("could not create test user: %v", err)
 	}
 
-	body := testutil.EncodeBody(t, routes.SignInData{
+	body := testutil.EncodeBody(t, auth.SignInDto{
 		Email:    userEmail,
 		Password: "random-password",
 	})
@@ -310,7 +309,7 @@ func TestRoutes_SignInShouldReturnWrongCredentialsError(t *testing.T) {
 
 	otherPass := passhash.Hash([]byte("other-password"))
 
-	u := &userrepository.User{
+	u := &user.Model{
 		Email:        userEmail,
 		PasswordHash: &otherPass,
 	}
@@ -319,7 +318,7 @@ func TestRoutes_SignInShouldReturnWrongCredentialsError(t *testing.T) {
 		t.Fatalf("could not create test user: %v", err)
 	}
 
-	body := testutil.EncodeBody(t, routes.SignInData{
+	body := testutil.EncodeBody(t, auth.SignInDto{
 		Email:    userEmail,
 		Password: userPassword,
 	})
@@ -371,7 +370,7 @@ func TestRoutes_SignInShouldStoreUserInSession(t *testing.T) {
 
 	passwordHash := passhash.Hash([]byte(userPass))
 
-	u := &userrepository.User{
+	u := &user.Model{
 		Email:        userEmail,
 		PasswordHash: &passwordHash,
 		Name:         "Amity Blight",
@@ -381,7 +380,7 @@ func TestRoutes_SignInShouldStoreUserInSession(t *testing.T) {
 		t.Fatalf("could not create test user: %v", err)
 	}
 
-	body := testutil.EncodeBody(t, routes.SignInData{
+	body := testutil.EncodeBody(t, auth.SignInDto{
 		Email:    userEmail,
 		Password: userPass,
 	})
@@ -403,9 +402,9 @@ func TestRoutes_SignInShouldStoreUserInSession(t *testing.T) {
 	var found bool
 
 	err := sessionManager.Iterate(t.Context(), func(sessCtx context.Context) error {
-		raw := sessionManager.Get(sessCtx, session.KeySessionData)
+		raw := sessionManager.Get(sessCtx, auth.KeySessionData)
 
-		data, ok := raw.(*session.Session)
+		data, ok := raw.(*auth.Session)
 		if !ok {
 			t.Errorf("wrong session data type: got: '%T: %v'", raw, raw)
 		}
