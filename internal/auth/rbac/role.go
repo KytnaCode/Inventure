@@ -10,4 +10,8 @@ type Role struct {
 
 	// Scopes are the scopes or permissions granted to the user who the role is granted.
 	Scopes []Scope
+
+	// Resource is the resource the role belongs to, role permission for resources in a larger scope
+	// will be ignored.
+	Resource Resource
 }
