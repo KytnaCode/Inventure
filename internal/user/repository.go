@@ -25,12 +25,13 @@ var (
 	ErrWrongCredentials = errors.New("wrong email or password")
 )
 
-type UserData struct {
+// Data is the authentication data for a user.
+type Data struct {
 	ID      string
 	RoleIDs []string
 }
 
-// User is the user's database model. For the domain object see [user.User].
+// Model is the user's database model. For the domain object see [user.User].
 type Model struct {
 	gorm.Model
 
@@ -50,6 +51,7 @@ type Model struct {
 	UpdatedAt time.Time
 }
 
+// TableName implements [gorm/schema.Tabler].
 func (m *Model) TableName() string {
 	return "users"
 }
@@ -91,7 +93,7 @@ func NewRepository(db gorm.Interface[Model], v *validator.Validate) *Repository 
 }
 
 // SignUp creates a new user with password based authentication.
-func (r *Repository) SignUp(ctx context.Context, data *SignUpData) (userData *UserData, err error) {
+func (r *Repository) SignUp(ctx context.Context, data *SignUpData) (userData *Data, err error) {
 	m := &Model{
 		ID:           datatypes.NewUUIDv4(),
 		Name:         data.Name,
@@ -109,7 +111,7 @@ func (r *Repository) SignUp(ctx context.Context, data *SignUpData) (userData *Us
 		return nil, fmt.Errorf("could not create user: %w", err)
 	}
 
-	userData = &UserData{
+	userData = &Data{
 		ID:      m.ID.String(),
 		RoleIDs: IDsFromRoles(m.Roles),
 	}
@@ -123,7 +125,7 @@ func (r *Repository) SignUp(ctx context.Context, data *SignUpData) (userData *Us
 // If the user cannot be found, [ErrUserNotFound] is returned, if user account doesn't support
 // password-based authentication, [ErrNotPasswordAuth] is returned, at last, if user was found
 // but their credentials don't match, [ErrWrongCredentials] is returned.
-func (r *Repository) SignIn(ctx context.Context, data *SignInData) (userData *UserData, err error) {
+func (r *Repository) SignIn(ctx context.Context, data *SignInData) (userData *Data, err error) {
 	u, err := r.table.Where("email = ?", data.Email).Take(ctx)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -146,7 +148,7 @@ func (r *Repository) SignIn(ctx context.Context, data *SignInData) (userData *Us
 		return nil, ErrWrongCredentials
 	}
 
-	userData = &UserData{
+	userData = &Data{
 		ID:      u.ID.String(),
 		RoleIDs: IDsFromRoles(u.Roles),
 	}
@@ -154,6 +156,7 @@ func (r *Repository) SignIn(ctx context.Context, data *SignInData) (userData *Us
 	return userData, nil
 }
 
+// IDsFromRoles takes a list of roles and returns its IDs.
 func IDsFromRoles(roles []role.RoleModel) []string {
 	ids := make([]string, 0, len(roles))
 
