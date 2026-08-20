@@ -1,12 +1,8 @@
 package rbac
 
 import (
-	"errors"
 	"fmt"
 )
-
-// ErrInvalidUUID is returned if a string is not a valid UUID.
-var ErrInvalidUUID = errors.New("string is not a valid UUID")
 
 // Resource represents a resource that can contain roles or can be subject of permissions.
 type Resource struct {

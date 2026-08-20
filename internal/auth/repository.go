@@ -8,11 +8,15 @@ import (
 	"strings"
 
 	"github.com/go-playground/validator/v10"
+	"github.com/kytnacode/inventure/internal/auth/rbac"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
 var (
+	// ErrInvalidUUID is returned if a string is not a valid UUID.
+	ErrInvalidUUID = errors.New("string is not a valid UUID")
+
 	// ErrInvalidScopeString is returned if scope field is malformed in the database.
 	ErrInvalidScopeString = errors.New("invalid scope string format")
 
@@ -57,7 +61,7 @@ type CreateRoleData struct {
 	Scopes []string
 
 	// Resource is the resource the new role will belong to.
-	Resource Resource
+	Resource rbac.Resource
 }
 
 // RoleModel is a role database model.
@@ -97,7 +101,7 @@ func (m *RoleModel) ToDomain() *Role {
 		ID:       m.ID.String(),
 		Name:     m.Name,
 		Scopes:   scopes,
-		Resource: NewResource(m.ResourceType, m.ResourceID.String()),
+		Resource: rbac.NewResource(m.ResourceType, m.ResourceID.String()),
 	}
 }
 
@@ -161,4 +165,18 @@ func (r *Repository) GetRoleByID(ctx context.Context, id string) (*Role, error) 
 	role := m.ToDomain()
 
 	return role, nil
+}
+
+func toUUID(id string) (datatypes.UUID, error) {
+	const uuidLen = 16
+
+	if len(id) != uuidLen {
+		return [uuidLen]byte{}, ErrInvalidUUID
+	}
+
+	var v [uuidLen]byte
+
+	copy(v[:], id)
+
+	return v, nil
 }

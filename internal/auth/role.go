@@ -1,5 +1,7 @@
 package auth
 
+import "github.com/kytnacode/inventure/internal/auth/rbac"
+
 // Role contains a set of permissions granted to a user.
 type Role struct {
 	// ID is the role's unique ID.
@@ -13,5 +15,5 @@ type Role struct {
 
 	// Resource is the resource the role belongs to, role permission for resources in a larger scope
 	// will be ignored.
-	Resource Resource
+	Resource rbac.Resource
 }
