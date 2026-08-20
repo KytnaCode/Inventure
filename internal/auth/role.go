@@ -10,8 +10,11 @@ type Role struct {
 	// Role display name.
 	Name string
 
-	// Scopes are the scopes or permissions granted to the user who the role is granted.
-	Scopes []Scope
+	// Allow are the permissions granted to the user who the role is given.
+	Allow []Scope
+
+	// Forbid are the permissions forbidden for the user who the role is given.
+	Forbid []Scope
 
 	// Resource is the resource the role belongs to, role permission for resources in a larger scope
 	// will be ignored.
