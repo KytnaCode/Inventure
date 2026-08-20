@@ -55,6 +55,9 @@ type CreateRoleData struct {
 
 	// Scopes is the list of scopes or permissions the role grants.
 	Scopes []string
+
+	// Resource is the resource the new role will belong to.
+	Resource Resource
 }
 
 // Model is a role database model.
@@ -69,6 +72,12 @@ type Model struct {
 
 	// Scopes is the list of scopes the role grants.
 	Scopes ScopeString
+
+	// ResourceType is the type of the resource the role belongs to.
+	ResourceType string
+
+	// ResourceID is the ID of the resource the role belongs to.
+	ResourceID datatypes.UUID
 }
 
 // TableName implements [gorm/schema.Tabler].
@@ -85,9 +94,10 @@ func (m *Model) ToDomain() *Role {
 	}
 
 	return &Role{
-		ID:     m.ID.String(),
-		Name:   m.Name,
-		Scopes: scopes,
+		ID:       m.ID.String(),
+		Name:     m.Name,
+		Scopes:   scopes,
+		Resource: NewResource(m.ResourceType, m.ResourceID.String()),
 	}
 }
 
@@ -116,10 +126,17 @@ func (r *Repository) CreateRole(ctx context.Context, data *CreateRoleData) (id s
 		scopes = []string{}
 	}
 
+	resID, err := toUUID(data.Resource.ID)
+	if err != nil {
+		return "", fmt.Errorf("expected resource ID to be a valid UUID: %w", err)
+	}
+
 	m := Model{
-		ID:     datatypes.NewUUIDv4(),
-		Name:   data.Name,
-		Scopes: scopes,
+		ID:           datatypes.NewUUIDv4(),
+		Name:         data.Name,
+		Scopes:       scopes,
+		ResourceType: data.Resource.Typ,
+		ResourceID:   resID,
 	}
 
 	err = r.table.Create(ctx, &m)
