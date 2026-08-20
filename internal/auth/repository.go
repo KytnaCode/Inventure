@@ -1,4 +1,4 @@
-package rbac
+package auth
 
 import (
 	"context"
@@ -60,8 +60,8 @@ type CreateRoleData struct {
 	Resource Resource
 }
 
-// Model is a role database model.
-type Model struct {
+// RoleModel is a role database model.
+type RoleModel struct {
 	gorm.Model
 
 	// ID is the role primary key.
@@ -81,12 +81,12 @@ type Model struct {
 }
 
 // TableName implements [gorm/schema.Tabler].
-func (m *Model) TableName() string {
+func (m *RoleModel) TableName() string {
 	return "roles"
 }
 
-// ToDomain converts a [Model] into a [Role].
-func (m *Model) ToDomain() *Role {
+// ToDomain converts a [RoleModel] into a [Role].
+func (m *RoleModel) ToDomain() *Role {
 	scopes := make([]Scope, 0, len(m.Scopes))
 
 	for _, v := range m.Scopes {
@@ -103,12 +103,12 @@ func (m *Model) ToDomain() *Role {
 
 // Repository handles persistence logic for roles.
 type Repository struct {
-	table gorm.Interface[Model]
+	table gorm.Interface[RoleModel]
 	v     *validator.Validate
 }
 
 // NewRepository creates a new [Repository].
-func NewRepository(table gorm.Interface[Model], v *validator.Validate) *Repository {
+func NewRepository(table gorm.Interface[RoleModel], v *validator.Validate) *Repository {
 	return &Repository{
 		table: table,
 		v:     v,
@@ -131,7 +131,7 @@ func (r *Repository) CreateRole(ctx context.Context, data *CreateRoleData) (id s
 		return "", fmt.Errorf("expected resource ID to be a valid UUID: %w", err)
 	}
 
-	m := Model{
+	m := RoleModel{
 		ID:           datatypes.NewUUIDv4(),
 		Name:         data.Name,
 		Scopes:       scopes,
