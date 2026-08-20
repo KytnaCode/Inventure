@@ -40,7 +40,8 @@ func TestRepository_CreateRoleShouldRequireName(t *testing.T) {
 
 	id, err := repo.CreateRole(t.Context(), &auth.CreateRoleData{
 		Name:   "",
-		Scopes: []string{"user_add", "user_del"},
+		Allow:  []string{"user_add", "user_del"},
+		Forbid: []string{"item-read"},
 	})
 	if id != "" {
 		t.Errorf("expected an empty ID: got '%v'", id)
@@ -82,7 +83,8 @@ func TestRepository_GetRoleByIDShouldReturnRole(t *testing.T) {
 	m := &auth.RoleModel{
 		ID:     datatypes.NewUUIDv4(),
 		Name:   "realrole",
-		Scopes: auth.ScopeString([]string{"user-add", "user-del", "user-read", "item-read"}),
+		Allow:  auth.ScopeString([]string{"user-add", "user-del", "user-read", "item-read"}),
+		Forbid: auth.ScopeString([]string{"item-del"}),
 	}
 
 	err := g.Create(t.Context(), m)
@@ -105,7 +107,11 @@ func TestRepository_GetRoleByIDShouldReturnRole(t *testing.T) {
 		t.Errorf("expected name to be '%v': got '%v'", expected.Name, got)
 	}
 
-	if got := role.Scopes; !slices.Equal(got, expected.Scopes) {
-		t.Errorf("expected scopes to be '%v': got '%v'", expected.Scopes, got)
+	if got := role.Allow; !slices.Equal(got, expected.Allow) {
+		t.Errorf("expected allowed permissions to be '%v': got '%v'", expected.Allow, got)
+	}
+
+	if got := role.Forbid; !slices.Equal(got, expected.Forbid) {
+		t.Errorf("expected forbidden permissions to be '%v': got '%v'", expected.Forbid, got)
 	}
 }

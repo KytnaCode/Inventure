@@ -57,8 +57,11 @@ type CreateRoleData struct {
 	// Name is the role display name, must not contain commas.
 	Name string `validate:"required,min=3,max=96,alphanum"`
 
-	// Scopes is the list of scopes or permissions the role grants.
-	Scopes []string
+	// Allow is the list of scopes or permissions the role grants.
+	Allow []string
+
+	// Forbid is the list of scopes or permissions the role forbids.
+	Forbid []string
 
 	// Resource is the resource the new role will belong to.
 	Resource rbac.Resource
@@ -74,8 +77,11 @@ type RoleModel struct {
 	// Name is role's display name, must not contain commas.
 	Name string
 
-	// Scopes is the list of scopes the role grants.
-	Scopes ScopeString
+	// Allow is the list of scopes the role grants.
+	Allow ScopeString
+
+	// Forbid is the list of scopes the role forbids.
+	Forbid ScopeString
 
 	// ResourceType is the type of the resource the role belongs to.
 	ResourceType string
@@ -89,18 +95,23 @@ func (m *RoleModel) TableName() string {
 	return "roles"
 }
 
-// ToDomain converts a [RoleModel] into a [Role].
-func (m *RoleModel) ToDomain() *Role {
-	scopes := make([]Scope, 0, len(m.Scopes))
+func toPerm(s ScopeString) []Scope {
+	elements := make([]Scope, 0, len(s))
 
-	for _, v := range m.Scopes {
-		scopes = append(scopes, Scope(v))
+	for _, v := range s {
+		elements = append(elements, Scope(v))
 	}
 
+	return elements
+}
+
+// ToDomain converts a [RoleModel] into a [Role].
+func (m *RoleModel) ToDomain() *Role {
 	return &Role{
 		ID:       m.ID.String(),
 		Name:     m.Name,
-		Scopes:   scopes,
+		Allow:    toPerm(m.Allow),
+		Forbid:   toPerm(m.Forbid),
 		Resource: rbac.NewResource(m.ResourceType, m.ResourceID.String()),
 	}
 }
@@ -125,9 +136,14 @@ func (r *Repository) CreateRole(ctx context.Context, data *CreateRoleData) (id s
 		return id, fmt.Errorf("role validation error: %w", err)
 	}
 
-	scopes := data.Scopes
-	if scopes == nil {
-		scopes = []string{}
+	allow := data.Allow
+	if allow == nil {
+		allow = []string{}
+	}
+
+	forbid := data.Forbid
+	if forbid == nil {
+		forbid = []string{}
 	}
 
 	resID, err := toUUID(data.Resource.ID)
@@ -138,7 +154,8 @@ func (r *Repository) CreateRole(ctx context.Context, data *CreateRoleData) (id s
 	m := RoleModel{
 		ID:           datatypes.NewUUIDv4(),
 		Name:         data.Name,
-		Scopes:       scopes,
+		Allow:        allow,
+		Forbid:       forbid,
 		ResourceType: data.Resource.Typ,
 		ResourceID:   resID,
 	}
