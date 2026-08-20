@@ -45,12 +45,12 @@ func TestRepositorySqliteShouldCreateUser(t *testing.T) {
 
 	repo, table := newSqliteRepo(t)
 
-	id, err := repo.SignUp(t.Context(), &data)
+	userData, err := repo.SignUp(t.Context(), &data)
 	if err != nil {
 		t.Fatalf("could not create user: %v", err)
 	}
 
-	user, err := table.Where("id = ?", id).Take(t.Context())
+	user, err := table.Where("id = ?", userData.ID).Take(t.Context())
 	if err != nil {
 		t.Fatalf("could not get created user: %v", err)
 	}
@@ -81,12 +81,12 @@ func TestRepository_SignInShouldReturnUserNotFoundSqlite(t *testing.T) {
 
 	r, _ := newSqliteRepo(t)
 
-	id, err := r.SignIn(t.Context(), &user.SignInData{
+	userData, err := r.SignIn(t.Context(), &user.SignInData{
 		Email:         "super-real@email.com",
 		ClearPassword: "my-super-real-password",
 	})
-	if id != "" {
-		t.Errorf("expected an empty id: got '%v'", id)
+	if userData != nil {
+		t.Errorf("expected empty user data: got '%v'", userData)
 	}
 
 	if err == nil {
@@ -115,12 +115,12 @@ func TestRepository_SignInShouldReturnNoPasswordAuthErrorSqlite(t *testing.T) {
 		t.Fatalf("could not insert new user: %v", err)
 	}
 
-	id, err := r.SignIn(t.Context(), &user.SignInData{
+	userData, err := r.SignIn(t.Context(), &user.SignInData{
 		Email:         u.Email,
 		ClearPassword: "some random password",
 	})
-	if id != "" {
-		t.Errorf("expected an empty id: got '%v'", id)
+	if userData != nil {
+		t.Errorf("expected empty user data: got '%v'", userData)
 	}
 
 	if err == nil {
@@ -153,12 +153,12 @@ func TestRepository_SignInShouldReturnWrongCredentialsErrorSqlite(t *testing.T) 
 		t.Fatalf("could not create test user: %v", err)
 	}
 
-	id, err := r.SignIn(t.Context(), &user.SignInData{
+	userData, err := r.SignIn(t.Context(), &user.SignInData{
 		Email:         u.Email,
 		ClearPassword: otherPassword,
 	})
-	if id != "" {
-		t.Errorf("expected an empty id: got '%v'", id)
+	if userData != nil {
+		t.Errorf("expected empty user data: got '%v'", userData)
 	}
 
 	if err == nil {
