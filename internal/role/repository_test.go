@@ -1,4 +1,4 @@
-package auth_test
+package role_test
 
 import (
 	"errors"
@@ -6,14 +6,14 @@ import (
 	"testing"
 
 	"github.com/go-playground/validator/v10"
-	"github.com/kytnacode/inventure/internal/auth"
+	"github.com/kytnacode/inventure/internal/role"
 	"github.com/kytnacode/inventure/pkg/validation"
 	"gorm.io/datatypes"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
-func newRepo(t *testing.T) (*auth.Repository, gorm.Interface[auth.RoleModel]) {
+func newRepo(t *testing.T) (*role.Repository, gorm.Interface[role.RoleModel]) {
 	t.Helper()
 
 	db, err := gorm.Open(sqlite.Open(":memory:"))
@@ -21,14 +21,14 @@ func newRepo(t *testing.T) (*auth.Repository, gorm.Interface[auth.RoleModel]) {
 		t.Fatalf("could not open database: %v", err)
 	}
 
-	err = db.AutoMigrate(auth.RoleModel{})
+	err = db.AutoMigrate(role.RoleModel{})
 	if err != nil {
 		t.Fatalf("could not run test database migrations: %v", err)
 	}
 
-	table := gorm.G[auth.RoleModel](db)
+	table := gorm.G[role.RoleModel](db)
 
-	repo := auth.NewRepository(table, validation.New())
+	repo := role.NewRepository(table, validation.New())
 
 	return repo, table
 }
@@ -38,7 +38,7 @@ func TestRepository_CreateRoleShouldRequireName(t *testing.T) {
 
 	repo, _ := newRepo(t)
 
-	id, err := repo.CreateRole(t.Context(), &auth.CreateRoleData{
+	id, err := repo.CreateRole(t.Context(), &role.CreateRoleData{
 		Name:   "",
 		Allow:  []string{"user_add", "user_del"},
 		Forbid: []string{"item-read"},
@@ -61,17 +61,17 @@ func TestRepository_GetRoleByIDShouldReturnRecordNotFound(t *testing.T) {
 
 	r, _ := newRepo(t)
 
-	role, err := r.GetRoleByID(t.Context(), datatypes.NewBinUUIDv4().String())
-	if role != nil {
-		t.Errorf("expected a nil role: got '%v'", role)
+	roleData, err := r.GetRoleByID(t.Context(), datatypes.NewBinUUIDv4().String())
+	if roleData != nil {
+		t.Errorf("expected a nil role: got '%v'", roleData)
 	}
 
 	if err == nil {
 		t.Fatal("expected a non-nil error")
 	}
 
-	if !errors.Is(err, auth.ErrRoleNotFound) {
-		t.Errorf("expected error to be '%T': got '%v'", auth.ErrRoleNotFound, err)
+	if !errors.Is(err, role.ErrRoleNotFound) {
+		t.Errorf("expected error to be '%T': got '%v'", role.ErrRoleNotFound, err)
 	}
 }
 
@@ -80,11 +80,11 @@ func TestRepository_GetRoleByIDShouldReturnRole(t *testing.T) {
 
 	r, g := newRepo(t)
 
-	m := &auth.RoleModel{
+	m := &role.RoleModel{
 		ID:     datatypes.NewUUIDv4(),
 		Name:   "realrole",
-		Allow:  auth.ScopeString([]string{"user-add", "user-del", "user-read", "item-read"}),
-		Forbid: auth.ScopeString([]string{"item-del"}),
+		Allow:  role.ScopeString([]string{"user-add", "user-del", "user-read", "item-read"}),
+		Forbid: role.ScopeString([]string{"item-del"}),
 	}
 
 	err := g.Create(t.Context(), m)
