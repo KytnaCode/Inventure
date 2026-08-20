@@ -184,6 +184,27 @@ func (r *Repository) GetRoleByID(ctx context.Context, id string) (*Role, error) 
 	return role, nil
 }
 
+// GetRolesByIDs return a list of roles by its IDs, if any ID doesn't match any role then
+// [ErrRoleNotFound] will be returned. The given IDs MUST be unique.
+func (r *Repository) GetRolesByIDs(ctx context.Context, ids []string) ([]Role, error) {
+	m, err := r.table.Where("id IN ?", ids).Find(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("could not get roles by ids: %w", err)
+	}
+
+	if len(m) != len(ids) {
+		return nil, ErrRoleNotFound
+	}
+
+	roles := make([]Role, 0, len(m))
+
+	for _, r := range m {
+		roles = append(roles, *r.ToDomain())
+	}
+
+	return roles, nil
+}
+
 func toUUID(id string) (datatypes.UUID, error) {
 	const uuidLen = 16
 
