@@ -227,7 +227,7 @@ func (ro *Routes) signUpUser(
 	w http.ResponseWriter,
 	model *user.Model,
 	passHash string,
-) (userData *user.UserData, ok bool) {
+) (userData *user.Data, ok bool) {
 	logger := logging.FromCtx(ctx)
 
 	userData, err := ro.conf.UserRepo.SignUp(ctx, &user.SignUpData{
@@ -255,7 +255,7 @@ func (ro *Routes) signInUser(
 	ctx context.Context,
 	w http.ResponseWriter,
 	data *user.SignInData,
-) (userData *user.UserData) {
+) (userData *user.Data) {
 	logger := logging.FromCtx(ctx)
 
 	userData, err := ro.conf.UserRepo.SignIn(ctx, data)
