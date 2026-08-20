@@ -11,6 +11,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/httprate"
 	"github.com/go-playground/validator/v10"
+	"github.com/kytnacode/inventure/internal/role"
 	"github.com/kytnacode/inventure/internal/user"
 	"github.com/kytnacode/inventure/internal/web"
 	"github.com/kytnacode/inventure/pkg/api"
@@ -104,6 +105,7 @@ func (ro *Routes) SignUp(w http.ResponseWriter, r *http.Request) {
 	model := &user.Model{
 		Name:         data.Name,
 		Email:        data.Email,
+		Roles:        []role.RoleModel{},
 		PasswordHash: &hash,
 	}
 
@@ -112,7 +114,7 @@ func (ro *Routes) SignUp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	id, ok := ro.signUpUser(r.Context(), w, model, hash)
+	userData, ok := ro.signUpUser(r.Context(), w, model, hash)
 	if !ok {
 		return
 	}
@@ -123,7 +125,8 @@ func (ro *Routes) SignUp(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ro.conf.SessionManager.Put(r.Context(), KeySessionData, &Session{
-		ID: id,
+		ID:      userData.ID,
+		RoleIDs: userData.RoleIDs,
 	})
 }
 
@@ -151,11 +154,11 @@ func (ro *Routes) SignIn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	id := ro.signInUser(r.Context(), w, &user.SignInData{
+	userData := ro.signInUser(r.Context(), w, &user.SignInData{
 		Email:         data.Email,
 		ClearPassword: data.Password,
 	})
-	if id == "" {
+	if userData == nil {
 		return
 	}
 
@@ -165,7 +168,8 @@ func (ro *Routes) SignIn(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ro.conf.SessionManager.Put(r.Context(), KeySessionData, &Session{
-		ID: id,
+		ID:      userData.ID,
+		RoleIDs: userData.RoleIDs,
 	})
 }
 
@@ -223,10 +227,10 @@ func (ro *Routes) signUpUser(
 	w http.ResponseWriter,
 	model *user.Model,
 	passHash string,
-) (id string, ok bool) {
+) (userData *user.UserData, ok bool) {
 	logger := logging.FromCtx(ctx)
 
-	id, err := ro.conf.UserRepo.SignUp(ctx, &user.SignUpData{
+	userData, err := ro.conf.UserRepo.SignUp(ctx, &user.SignUpData{
 		Email:        model.Email,
 		Name:         model.Name,
 		PasswordHash: passHash,
@@ -241,20 +245,20 @@ func (ro *Routes) signUpUser(
 			logger.Error("could not write error response", logging.Error(err))
 		}
 
-		return "", false
+		return nil, false
 	}
 
-	return id, true
+	return userData, true
 }
 
 func (ro *Routes) signInUser(
 	ctx context.Context,
 	w http.ResponseWriter,
 	data *user.SignInData,
-) (id string) {
+) (userData *user.UserData) {
 	logger := logging.FromCtx(ctx)
 
-	id, err := ro.conf.UserRepo.SignIn(ctx, data)
+	userData, err := ro.conf.UserRepo.SignIn(ctx, data)
 	if err != nil {
 		if errors.Is(err, user.ErrUserNotFound) {
 			logger.Warn("user not found", logging.Error(err))
@@ -266,7 +270,7 @@ func (ro *Routes) signInUser(
 				logger.Error("could not write fail response", logging.Error(err))
 			}
 
-			return ""
+			return nil
 		}
 
 		if errors.Is(err, user.ErrNotPasswordAuth) {
@@ -284,7 +288,7 @@ func (ro *Routes) signInUser(
 				logger.Error("could not send error response", logging.Error(err))
 			}
 
-			return ""
+			return nil
 		}
 
 		if errors.Is(err, user.ErrWrongCredentials) {
@@ -302,7 +306,7 @@ func (ro *Routes) signInUser(
 				logger.Error("could not send error response", logging.Error(err))
 			}
 
-			return ""
+			return nil
 		}
 
 		logger.Error("unknown server error on user sign in", logging.Error(err))
@@ -314,10 +318,10 @@ func (ro *Routes) signInUser(
 			logger.Error("could not send error response", logging.Error(err))
 		}
 
-		return ""
+		return nil
 	}
 
-	return id
+	return userData
 }
 
 func (ro *Routes) destroyExistingSession(

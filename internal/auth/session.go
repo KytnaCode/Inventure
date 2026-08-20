@@ -11,7 +11,8 @@ import (
 const KeySessionData = "session-data"
 
 type Session struct {
-	ID string
+	ID      string
+	RoleIDs []string
 }
 
 func init() {

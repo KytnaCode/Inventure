@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/go-playground/validator/v10"
+	"github.com/kytnacode/inventure/internal/role"
 	"github.com/kytnacode/inventure/pkg/passhash"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
@@ -24,6 +25,11 @@ var (
 	ErrWrongCredentials = errors.New("wrong email or password")
 )
 
+type UserData struct {
+	ID      string
+	RoleIDs []string
+}
+
 // User is the user's database model. For the domain object see [user.User].
 type Model struct {
 	gorm.Model
@@ -37,6 +43,8 @@ type Model struct {
 	Email string `validate:"required,email"`
 
 	PasswordHash *string
+
+	Roles []role.RoleModel `gorm:"many2many:user_role" validate:"required"`
 
 	CreatedAt time.Time
 	UpdatedAt time.Time
@@ -83,24 +91,30 @@ func NewRepository(db gorm.Interface[Model], v *validator.Validate) *Repository 
 }
 
 // SignUp creates a new user with password based authentication.
-func (r *Repository) SignUp(ctx context.Context, data *SignUpData) (id string, err error) {
+func (r *Repository) SignUp(ctx context.Context, data *SignUpData) (userData *UserData, err error) {
 	m := &Model{
 		ID:           datatypes.NewUUIDv4(),
 		Name:         data.Name,
 		Email:        data.Email,
 		PasswordHash: &data.PasswordHash,
+		Roles:        []role.RoleModel{},
 	}
 
 	if err := r.v.Struct(m); err != nil {
-		return "", fmt.Errorf("invalid user model: %w", err)
+		return nil, fmt.Errorf("invalid user model: %w", err)
 	}
 
 	err = r.table.Create(ctx, m)
 	if err != nil {
-		return "", fmt.Errorf("could not create user: %w", err)
+		return nil, fmt.Errorf("could not create user: %w", err)
 	}
 
-	return m.ID.String(), nil
+	userData = &UserData{
+		ID:      m.ID.String(),
+		RoleIDs: IDsFromRoles(m.Roles),
+	}
+
+	return userData, nil
 }
 
 // SignIn search for a user by the given data and verifies its credentials, if credentials
@@ -109,28 +123,43 @@ func (r *Repository) SignUp(ctx context.Context, data *SignUpData) (id string, e
 // If the user cannot be found, [ErrUserNotFound] is returned, if user account doesn't support
 // password-based authentication, [ErrNotPasswordAuth] is returned, at last, if user was found
 // but their credentials don't match, [ErrWrongCredentials] is returned.
-func (r *Repository) SignIn(ctx context.Context, data *SignInData) (id string, err error) {
+func (r *Repository) SignIn(ctx context.Context, data *SignInData) (userData *UserData, err error) {
 	u, err := r.table.Where("email = ?", data.Email).Take(ctx)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return "", ErrUserNotFound
+			return nil, ErrUserNotFound
 		}
 
-		return "", fmt.Errorf("user query failed: %w", err)
+		return nil, fmt.Errorf("user query failed: %w", err)
 	}
 
 	if u.PasswordHash == nil {
-		return "", ErrNotPasswordAuth
+		return nil, ErrNotPasswordAuth
 	}
 
 	ok, err := passhash.Verify(*u.PasswordHash, []byte(data.ClearPassword))
 	if err != nil {
-		return "", fmt.Errorf("could not authenticate user: %w", err)
+		return nil, fmt.Errorf("could not authenticate user: %w", err)
 	}
 
 	if !ok {
-		return "", ErrWrongCredentials
+		return nil, ErrWrongCredentials
 	}
 
-	return u.ID.String(), nil
+	userData = &UserData{
+		ID:      u.ID.String(),
+		RoleIDs: IDsFromRoles(u.Roles),
+	}
+
+	return userData, nil
+}
+
+func IDsFromRoles(roles []role.RoleModel) []string {
+	ids := make([]string, 0, len(roles))
+
+	for _, r := range roles {
+		ids = append(ids, r.ID.String())
+	}
+
+	return ids
 }
