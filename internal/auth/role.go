@@ -1,4 +1,4 @@
-package rbac
+package auth
 
 // Role contains a set of permissions granted to a user.
 type Role struct {

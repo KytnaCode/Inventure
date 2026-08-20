@@ -1,4 +1,4 @@
-package rbac_test
+package auth_test
 
 import (
 	"errors"
@@ -6,14 +6,14 @@ import (
 	"testing"
 
 	"github.com/go-playground/validator/v10"
-	"github.com/kytnacode/inventure/internal/auth/rbac"
+	"github.com/kytnacode/inventure/internal/auth"
 	"github.com/kytnacode/inventure/pkg/validation"
 	"gorm.io/datatypes"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
-func newRepo(t *testing.T) (*rbac.Repository, gorm.Interface[rbac.Model]) {
+func newRepo(t *testing.T) (*auth.Repository, gorm.Interface[auth.RoleModel]) {
 	t.Helper()
 
 	db, err := gorm.Open(sqlite.Open(":memory:"))
@@ -21,14 +21,14 @@ func newRepo(t *testing.T) (*rbac.Repository, gorm.Interface[rbac.Model]) {
 		t.Fatalf("could not open database: %v", err)
 	}
 
-	err = db.AutoMigrate(rbac.Model{})
+	err = db.AutoMigrate(auth.RoleModel{})
 	if err != nil {
 		t.Fatalf("could not run test database migrations: %v", err)
 	}
 
-	table := gorm.G[rbac.Model](db)
+	table := gorm.G[auth.RoleModel](db)
 
-	repo := rbac.NewRepository(table, validation.New())
+	repo := auth.NewRepository(table, validation.New())
 
 	return repo, table
 }
@@ -38,7 +38,7 @@ func TestRepository_CreateRoleShouldRequireName(t *testing.T) {
 
 	repo, _ := newRepo(t)
 
-	id, err := repo.CreateRole(t.Context(), &rbac.CreateRoleData{
+	id, err := repo.CreateRole(t.Context(), &auth.CreateRoleData{
 		Name:   "",
 		Scopes: []string{"user_add", "user_del"},
 	})
@@ -69,8 +69,8 @@ func TestRepository_GetRoleByIDShouldReturnRecordNotFound(t *testing.T) {
 		t.Fatal("expected a non-nil error")
 	}
 
-	if !errors.Is(err, rbac.ErrRoleNotFound) {
-		t.Errorf("expected error to be '%T': got '%v'", rbac.ErrRoleNotFound, err)
+	if !errors.Is(err, auth.ErrRoleNotFound) {
+		t.Errorf("expected error to be '%T': got '%v'", auth.ErrRoleNotFound, err)
 	}
 }
 
@@ -79,10 +79,10 @@ func TestRepository_GetRoleByIDShouldReturnRole(t *testing.T) {
 
 	r, g := newRepo(t)
 
-	m := &rbac.Model{
+	m := &auth.RoleModel{
 		ID:     datatypes.NewUUIDv4(),
 		Name:   "realrole",
-		Scopes: rbac.ScopeString([]string{"user-add", "user-del", "user-read", "item-read"}),
+		Scopes: auth.ScopeString([]string{"user-add", "user-del", "user-read", "item-read"}),
 	}
 
 	err := g.Create(t.Context(), m)
