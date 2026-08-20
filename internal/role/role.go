@@ -1,4 +1,4 @@
-package auth
+package role
 
 import "github.com/kytnacode/inventure/internal/auth/rbac"
 
