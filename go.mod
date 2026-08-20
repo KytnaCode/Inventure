@@ -8,6 +8,7 @@ require (
 	github.com/go-chi/httplog/v3 v3.4.0
 	github.com/go-chi/httprate v0.16.0
 	github.com/go-playground/validator/v10 v10.30.3
+	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/spf13/viper v1.21.0
 	golang.org/x/crypto v0.55.0
 	gorm.io/datatypes v1.2.7
