@@ -1,6 +1,6 @@
 package web
 
-import "github.com/kytnacode/inventure/pkg/api"
+import "github.com/kytnacode/inventure/api"
 
 // Code is an API's error code.
 type Code = api.Code

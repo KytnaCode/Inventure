@@ -7,9 +7,9 @@ import (
 	"github.com/alexedwards/scs/v2"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/kytnacode/inventure/api/csrf"
 	"github.com/kytnacode/inventure/internal/auth"
-	"github.com/kytnacode/inventure/pkg/api/csrf"
-	"github.com/kytnacode/inventure/pkg/logging"
+	"github.com/kytnacode/inventure/logging"
 )
 
 // Config is the main API's configuration.

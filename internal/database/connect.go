@@ -6,8 +6,8 @@ import (
 	"errors"
 
 	"github.com/kytnacode/inventure/internal/config"
-	"github.com/kytnacode/inventure/pkg/logging"
-	"github.com/kytnacode/inventure/pkg/retry"
+	"github.com/kytnacode/inventure/logging"
+	"github.com/kytnacode/inventure/retry"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )

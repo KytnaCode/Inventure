@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/kytnacode/inventure/internal/user"
-	"github.com/kytnacode/inventure/pkg/validation"
+	"github.com/kytnacode/inventure/validation"
 	"gorm.io/datatypes"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
