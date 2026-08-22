@@ -6,7 +6,7 @@ import (
 
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/httplog/v3"
-	"github.com/kytnacode/inventure/pkg/logging"
+	"github.com/kytnacode/inventure/logging"
 )
 
 // NewLoggerMiddleware creates a new request logger middleware.

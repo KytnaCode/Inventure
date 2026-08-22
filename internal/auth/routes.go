@@ -11,12 +11,12 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/httprate"
 	"github.com/go-playground/validator/v10"
+	"github.com/kytnacode/inventure/api"
+	"github.com/kytnacode/inventure/api/csrf"
 	"github.com/kytnacode/inventure/internal/user"
 	"github.com/kytnacode/inventure/internal/web"
-	"github.com/kytnacode/inventure/pkg/api"
-	"github.com/kytnacode/inventure/pkg/api/csrf"
-	"github.com/kytnacode/inventure/pkg/logging"
-	"github.com/kytnacode/inventure/pkg/passhash"
+	"github.com/kytnacode/inventure/logging"
+	"github.com/kytnacode/inventure/passhash"
 )
 
 // SignUpDto is the necessary data for a new user to sign up with password-based authentication.

@@ -10,13 +10,13 @@ import (
 
 	"github.com/alexedwards/scs/v2"
 	"github.com/alexedwards/scs/v2/memstore"
+	"github.com/kytnacode/inventure/api"
 	"github.com/kytnacode/inventure/internal/auth"
 	"github.com/kytnacode/inventure/internal/testutil"
 	"github.com/kytnacode/inventure/internal/user"
 	"github.com/kytnacode/inventure/internal/web"
-	"github.com/kytnacode/inventure/pkg/api"
-	"github.com/kytnacode/inventure/pkg/passhash"
-	"github.com/kytnacode/inventure/pkg/validation"
+	"github.com/kytnacode/inventure/passhash"
+	"github.com/kytnacode/inventure/validation"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )

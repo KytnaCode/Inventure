@@ -6,8 +6,8 @@ import (
 	"net/http"
 
 	"github.com/go-playground/validator/v10"
-	"github.com/kytnacode/inventure/pkg/logging"
-	"github.com/kytnacode/inventure/pkg/validation"
+	"github.com/kytnacode/inventure/logging"
+	"github.com/kytnacode/inventure/validation"
 )
 
 // ValidateModel validates a model using the given validator instance, if model is valid

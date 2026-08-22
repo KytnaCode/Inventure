@@ -4,8 +4,8 @@ import (
 	"net/http"
 
 	"github.com/alexedwards/scs/v2"
-	"github.com/kytnacode/inventure/pkg/api"
-	"github.com/kytnacode/inventure/pkg/logging"
+	"github.com/kytnacode/inventure/api"
+	"github.com/kytnacode/inventure/logging"
 )
 
 // RequireAuth checks if an authenticated session exists in request's context, if not, send an

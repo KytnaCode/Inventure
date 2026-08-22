@@ -4,7 +4,7 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/kytnacode/inventure/pkg/passhash"
+	"github.com/kytnacode/inventure/passhash"
 )
 
 var base64RegexPattern = "(?:[A-Za-z0-9+\\/]{4})*(?:[A-Za-z0-9+\\/]{2,3})?"

@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/kytnacode/inventure/pkg/retry"
+	"github.com/kytnacode/inventure/retry"
 )
 
 var errRealError = errors.New("real error")

@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/go-playground/validator/v10"
-	"github.com/kytnacode/inventure/pkg/passhash"
+	"github.com/kytnacode/inventure/passhash"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
