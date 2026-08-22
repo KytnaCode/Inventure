@@ -5,9 +5,9 @@ import (
 	"path"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/kytnacode/inventure/internal/user"
 	"github.com/kytnacode/inventure/validation"
-	"gorm.io/datatypes"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
@@ -104,7 +104,7 @@ func TestRepository_SignInShouldReturnNoPasswordAuthErrorSqlite(t *testing.T) {
 	r, g := newSqliteRepo(t)
 
 	u := user.Model{
-		ID:    datatypes.NewUUIDv4(),
+		ID:    uuid.New(),
 		Name:  "My user name",
 		Email: "my-user@email.com",
 		// No Password hash.

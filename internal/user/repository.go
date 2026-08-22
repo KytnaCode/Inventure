@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/go-playground/validator/v10"
+	"github.com/google/uuid"
 	"github.com/kytnacode/inventure/passhash"
-	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
@@ -34,7 +34,7 @@ type Data struct {
 type Model struct {
 	gorm.Model
 
-	ID datatypes.UUID `gorm:"primaryKey"`
+	ID uuid.UUID `gorm:"primaryKey"`
 
 	// Name is user display name.
 	Name string `validate:"required,min=3,max=80,resourcename"`
@@ -91,7 +91,7 @@ func NewRepository(db gorm.Interface[Model], v *validator.Validate) *Repository 
 // SignUp creates a new user with password based authentication.
 func (r *Repository) SignUp(ctx context.Context, data *SignUpData) (userData *Data, err error) {
 	m := &Model{
-		ID:           datatypes.NewUUIDv4(),
+		ID:           uuid.New(),
 		Name:         data.Name,
 		Email:        data.Email,
 		PasswordHash: &data.PasswordHash,
