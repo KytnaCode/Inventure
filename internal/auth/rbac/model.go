@@ -1,14 +1,14 @@
 package rbac
 
 import (
+	"github.com/google/uuid"
 	"github.com/kytnacode/inventure/sqltypes"
-	"gorm.io/datatypes"
 )
 
 // RoleModel is the database representation for a role.
 type RoleModel struct {
 	// ID is role's unique ID.
-	ID datatypes.UUID `gorm:"primaryKey"`
+	ID uuid.UUID `gorm:"primaryKey"`
 
 	// Name is role's name, must be locally unique within the resource the role belongs.
 	Name string `gorm:"uniqueIndex:idx_name,where:deleted_at IS NULL,priority:1"`
@@ -33,10 +33,10 @@ func (m *RoleModel) TableName() string {
 // AccessModel is the database representation of a permission grant.
 type AccessModel struct {
 	// ID is access' unique ID.
-	ID datatypes.UUID `gorm:"primaryKey"`
+	ID uuid.UUID `gorm:"primaryKey"`
 
 	// RoleID is the role which the access is granted on.
-	RoleID datatypes.UUID
+	RoleID uuid.UUID
 
 	// Perms is the list of permissions granted to the role.
 	Perms sqltypes.List
@@ -45,7 +45,7 @@ type AccessModel struct {
 	ResourceType string `gorm:"uniqueIndex:idx_resource,where:deleted_at IS NULL,priority:2"`
 
 	// ResourceID is the ID of the resource the access is granting permissions on.
-	ResourceID datatypes.UUID `gorm:"uniqueIndex:idx_resource,where:deleted_at IS NULL,priority:1"`
+	ResourceID uuid.UUID `gorm:"uniqueIndex:idx_resource,where:deleted_at IS NULL,priority:1"`
 }
 
 // TableName returns the name for accesses table. Implements [gorm/schema.Tabler].
