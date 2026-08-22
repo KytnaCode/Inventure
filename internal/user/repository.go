@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/go-playground/validator/v10"
-	"github.com/kytnacode/inventure/internal/role"
 	"github.com/kytnacode/inventure/pkg/passhash"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
@@ -44,8 +43,6 @@ type Model struct {
 	Email string `validate:"required,email"`
 
 	PasswordHash *string
-
-	Roles []role.RoleModel `gorm:"many2many:user_role" validate:"required"`
 
 	CreatedAt time.Time
 	UpdatedAt time.Time
@@ -99,7 +96,6 @@ func (r *Repository) SignUp(ctx context.Context, data *SignUpData) (userData *Da
 		Name:         data.Name,
 		Email:        data.Email,
 		PasswordHash: &data.PasswordHash,
-		Roles:        []role.RoleModel{},
 	}
 
 	if err := r.v.Struct(m); err != nil {
@@ -112,8 +108,7 @@ func (r *Repository) SignUp(ctx context.Context, data *SignUpData) (userData *Da
 	}
 
 	userData = &Data{
-		ID:      m.ID.String(),
-		RoleIDs: IDsFromRoles(m.Roles),
+		ID: m.ID.String(),
 	}
 
 	return userData, nil
@@ -149,20 +144,8 @@ func (r *Repository) SignIn(ctx context.Context, data *SignInData) (userData *Da
 	}
 
 	userData = &Data{
-		ID:      u.ID.String(),
-		RoleIDs: IDsFromRoles(u.Roles),
+		ID: u.ID.String(),
 	}
 
 	return userData, nil
-}
-
-// IDsFromRoles takes a list of roles and returns its IDs.
-func IDsFromRoles(roles []role.RoleModel) []string {
-	ids := make([]string, 0, len(roles))
-
-	for _, r := range roles {
-		ids = append(ids, r.ID.String())
-	}
-
-	return ids
 }
