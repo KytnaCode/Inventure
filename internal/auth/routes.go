@@ -11,7 +11,6 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/httprate"
 	"github.com/go-playground/validator/v10"
-	"github.com/kytnacode/inventure/internal/role"
 	"github.com/kytnacode/inventure/internal/user"
 	"github.com/kytnacode/inventure/internal/web"
 	"github.com/kytnacode/inventure/pkg/api"
@@ -105,7 +104,6 @@ func (ro *Routes) SignUp(w http.ResponseWriter, r *http.Request) {
 	model := &user.Model{
 		Name:         data.Name,
 		Email:        data.Email,
-		Roles:        []role.RoleModel{},
 		PasswordHash: &hash,
 	}
 
