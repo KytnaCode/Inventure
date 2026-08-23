@@ -1,5 +1,9 @@
 package rbac
 
+import (
+	"fmt"
+)
+
 // Role is a role for RBAC.
 type Role struct {
 	// ID is role's unique ID.
@@ -41,6 +45,26 @@ type Resource struct {
 
 	// ID is the resource unique ID.
 	ID string
+}
+
+// NewResource creates a new [Resource]. If parent is nil the resource will be interpreted as a
+// root resource.
+func NewResource(typ, id string, parent *Resource) Resource {
+	return Resource{
+		Typ:    typ,
+		ID:     id,
+		Parent: parent,
+	}
+}
+
+// String returns a string representation of the resource.
+func (r *Resource) String() string {
+	return fmt.Sprintf("[%v: %v]", r.Typ, r.ID)
+}
+
+// Equal check if a resource is equal to another. Resource's parent is not considered for equality.
+func (r *Resource) Equal(other Resource) bool {
+	return r.Typ == other.Typ && r.ID == other.ID
 }
 
 // Perm is a permission that can be granted.
