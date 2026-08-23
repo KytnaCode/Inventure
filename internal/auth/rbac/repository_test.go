@@ -68,8 +68,12 @@ func compareModelAndData(
 			gotPerms = append(gotPerms, rbac.Perm(v))
 		}
 
+		// Ensure sorted to avoid false positives.
+		slices.Sort(gotPerms)
+		slices.Sort(otherAccess.Perms)
+
 		if !slices.Equal(gotPerms, otherAccess.Perms) {
-			t.Errorf("expected access permissions to be '%v': got '%v'", otherAccess.Perms, got)
+			t.Errorf("expected access permissions to be '%v': got '%v'", otherAccess.Perms, gotPerms)
 		}
 	}
 }
