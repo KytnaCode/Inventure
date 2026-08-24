@@ -79,7 +79,7 @@ func NewRoutes(conf *RoutesConfig) *Routes {
 func (ro *Routes) SignUp(w http.ResponseWriter, r *http.Request) {
 	api.AcceptJSON(w)
 
-	r = ro.withLogger(r, "auth/routes/Routes.SignUp")
+	r = ro.withLogger(r, "auth.Routes.SignUp")
 
 	data := new(SignUpDto)
 
@@ -132,7 +132,7 @@ func (ro *Routes) SignUp(w http.ResponseWriter, r *http.Request) {
 func (ro *Routes) SignIn(w http.ResponseWriter, r *http.Request) {
 	api.AcceptJSON(w)
 
-	r = ro.withLogger(r, "auth/routes/Routes.SignIn")
+	r = ro.withLogger(r, "auth.Routes.SignIn")
 
 	data := new(SignInDto)
 
