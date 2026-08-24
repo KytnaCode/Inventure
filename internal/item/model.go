@@ -21,4 +21,10 @@ type Model struct {
 
 	// Attrs a per-item custom attributes.
 	Attrs datatypes.JSONMap
+
+	// PlaceType is the type of the place the item is residing on.
+	PlaceType string
+
+	// PlaceID is the ID of the place the item is residing on.
+	PlaceID uuid.UUID
 }

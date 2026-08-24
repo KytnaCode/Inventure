@@ -43,6 +43,12 @@ type Model struct {
 
 	PasswordHash *string
 
+	// ResourceType is the type of the resource the user belongs to.
+	ResourceType string
+
+	// ResourceID is the ID of the resource the user belongs to.
+	ResourceID uuid.UUID
+
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }
