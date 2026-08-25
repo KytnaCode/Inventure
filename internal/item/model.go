@@ -36,11 +36,12 @@ func NewModel(v *validator.Validate, data *Data) (*Model, error) {
 	}
 
 	m := &Model{
-		ID:    uuid.New(),
-		Name:  data.Name,
-		Desc:  data.Desc,
-		Stock: data.Stock,
-		Attrs: data.Attrs,
+		ID:      uuid.New(),
+		Name:    data.Name,
+		Desc:    data.Desc,
+		Stock:   data.Stock,
+		Attrs:   data.Attrs,
+		PlaceID: data.PlaceID,
 	}
 
 	return m, nil
@@ -49,10 +50,11 @@ func NewModel(v *validator.Validate, data *Data) (*Model, error) {
 // ToDomain converts a [Model] into an [Item].
 func (m *Model) ToDomain() *Item {
 	return &Item{
-		ID:    m.ID.String(),
-		Name:  m.Name,
-		Desc:  m.Desc,
-		Stock: m.Stock,
-		Attrs: m.Attrs,
+		ID:      m.ID.String(),
+		Name:    m.Name,
+		Desc:    m.Desc,
+		Stock:   m.Stock,
+		Attrs:   m.Attrs,
+		PlaceID: m.PlaceID.String(),
 	}
 }
