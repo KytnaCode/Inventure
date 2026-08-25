@@ -15,7 +15,7 @@ type Data struct {
 	Name string `validate:"required,max=80,resourcename"`
 
 	// Desc is item's description.
-	Desc string `validate:"max=65565,resourcename"`
+	Desc string `validate:"max=65565,max=0|resourcename"`
 
 	// Stock is item's stock, must be positive.
 	Stock int `validate:"gte=0"`
