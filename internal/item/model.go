@@ -1,6 +1,9 @@
 package item
 
 import (
+	"fmt"
+
+	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
 	"gorm.io/datatypes"
 )
@@ -24,6 +27,23 @@ type Model struct {
 
 	// PlaceID is the ID of the place the item is residing on.
 	PlaceID uuid.UUID
+}
+
+// NewModel validates data and returns a new [Model].
+func NewModel(v *validator.Validate, data *Data) (*Model, error) {
+	if err := v.Struct(data); err != nil {
+		return nil, fmt.Errorf("invalid item data: %w", err)
+	}
+
+	m := &Model{
+		ID:    uuid.New(),
+		Name:  data.Name,
+		Desc:  data.Desc,
+		Stock: data.Stock,
+		Attrs: data.Attrs,
+	}
+
+	return m, nil
 }
 
 // ToDomain converts a [Model] into an [Item].
