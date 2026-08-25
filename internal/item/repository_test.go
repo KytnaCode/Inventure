@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/go-playground/validator/v10"
+	"github.com/google/uuid"
 	"github.com/kytnacode/inventure/internal/item"
 	"github.com/kytnacode/inventure/validation"
 	"gorm.io/driver/sqlite"
@@ -37,9 +38,10 @@ func TestRepository_CreateItemShouldRequireName(t *testing.T) {
 
 	id, err := repo.CreateItem(t.Context(), &item.Data{
 		// Name: ,
-		Desc:  "description",
-		Stock: 10,
-		Attrs: map[string]any{},
+		Desc:    "description",
+		Stock:   10,
+		Attrs:   map[string]any{},
+		PlaceID: uuid.New(),
 	})
 	if id != "" {
 		t.Errorf("expected an empty id: got '%v'", id)
@@ -66,6 +68,7 @@ func TestRepository_CreateItemShouldStoreItem(t *testing.T) {
 		Attrs: map[string]any{
 			"hello": "world",
 		},
+		PlaceID: uuid.New(),
 	}
 
 	id, err := repo.CreateItem(t.Context(), data)

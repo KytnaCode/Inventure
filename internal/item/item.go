@@ -17,4 +17,7 @@ type Item struct {
 
 	// Attrs contains custom per-item attributes.
 	Attrs map[string]any `validate:"dive,keys,required,max=80,alphanumspace,endKeys"`
+
+	// PlaceID is the ID of the place where the item resides.
+	PlaceID string `validate:"required"`
 }

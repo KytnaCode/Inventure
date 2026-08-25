@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/go-playground/validator/v10"
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -21,6 +22,9 @@ type Data struct {
 
 	// Attrs are optional per-item custom attributes.
 	Attrs map[string]any `validate:"dive,keys,required,min=1,max=80,endkeys"`
+
+	// PlaceID is the ID of the place where the item resides.
+	PlaceID uuid.UUID `validate:"required"`
 }
 
 // Repository handles business logic for [Item].
