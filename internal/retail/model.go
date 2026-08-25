@@ -29,6 +29,9 @@ type PlaceModel struct {
 	// ParentID is the ID of the parent resource.
 	ParentID uuid.UUID
 
+	// Name is place's name, must be unique between siblings.
+	Name string
+
 	// Children are the children places.
 	Children []PlaceModel `gorm:"polymorphic:Parent;"`
 

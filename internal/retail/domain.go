@@ -28,6 +28,9 @@ type Place struct {
 	// Parent place, nil for retail's root storage.
 	Parent *Place
 
+	// Name is place name, must be unique between siblings.
+	Name string
+
 	// Children are children places.
 	Children []Place
 
