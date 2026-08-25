@@ -25,3 +25,14 @@ type Model struct {
 	// PlaceID is the ID of the place the item is residing on.
 	PlaceID uuid.UUID
 }
+
+// ToDomain converts a [Model] into an [Item].
+func (m *Model) ToDomain() *Item {
+	return &Item{
+		ID:    m.ID.String(),
+		Name:  m.Name,
+		Desc:  m.Desc,
+		Stock: m.Stock,
+		Attrs: m.Attrs,
+	}
+}
