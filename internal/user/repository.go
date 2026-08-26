@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
@@ -24,38 +23,13 @@ var (
 	ErrWrongCredentials = errors.New("wrong email or password")
 )
 
-// Data is the authentication data for a user.
-type Data struct {
-	ID      string
+// Claims are authentication claims of a user.
+type Claims struct {
+	// ID is user's unique ID.
+	ID string
+
+	// RoleIDs are the IDs of the roles the user belongs, can be empty, but never nil.
 	RoleIDs []string
-}
-
-// Model is the user's database model. For the domain object see [user.User].
-type Model struct {
-	gorm.Model
-
-	ID uuid.UUID `gorm:"primaryKey"`
-
-	// Name is user display name.
-	Name string `validate:"required,min=3,max=80,resourcename"`
-
-	Email string `validate:"required,email"`
-
-	PasswordHash *string
-
-	// ResourceType is the type of the resource the user belongs to.
-	ResourceType string
-
-	// ResourceID is the ID of the resource the user belongs to.
-	ResourceID uuid.UUID
-
-	CreatedAt time.Time
-	UpdatedAt time.Time
-}
-
-// TableName implements [gorm/schema.Tabler].
-func (m *Model) TableName() string {
-	return "users"
 }
 
 // SignUpData is the necessary data to create a new user with password based authentication
@@ -95,7 +69,7 @@ func NewRepository(db gorm.Interface[Model], v *validator.Validate) *Repository 
 }
 
 // SignUp creates a new user with password based authentication.
-func (r *Repository) SignUp(ctx context.Context, data *SignUpData) (userData *Data, err error) {
+func (r *Repository) SignUp(ctx context.Context, data *SignUpData) (userData *Claims, err error) {
 	m := &Model{
 		ID:           uuid.New(),
 		Name:         data.Name,
@@ -112,8 +86,9 @@ func (r *Repository) SignUp(ctx context.Context, data *SignUpData) (userData *Da
 		return nil, fmt.Errorf("could not create user: %w", err)
 	}
 
-	userData = &Data{
-		ID: m.ID.String(),
+	userData = &Claims{
+		ID:      m.ID.String(),
+		RoleIDs: make([]string, 0),
 	}
 
 	return userData, nil
@@ -125,7 +100,7 @@ func (r *Repository) SignUp(ctx context.Context, data *SignUpData) (userData *Da
 // If the user cannot be found, [ErrUserNotFound] is returned, if user account doesn't support
 // password-based authentication, [ErrNotPasswordAuth] is returned, at last, if user was found
 // but their credentials don't match, [ErrWrongCredentials] is returned.
-func (r *Repository) SignIn(ctx context.Context, data *SignInData) (userData *Data, err error) {
+func (r *Repository) SignIn(ctx context.Context, data *SignInData) (userData *Claims, err error) {
 	u, err := r.table.Where("email = ?", data.Email).Take(ctx)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -148,8 +123,9 @@ func (r *Repository) SignIn(ctx context.Context, data *SignInData) (userData *Da
 		return nil, ErrWrongCredentials
 	}
 
-	userData = &Data{
-		ID: u.ID.String(),
+	userData = &Claims{
+		ID:      u.ID.String(),
+		RoleIDs: make([]string, 0),
 	}
 
 	return userData, nil
