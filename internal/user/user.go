@@ -17,5 +17,5 @@ type User struct {
 	Email string `validate:"required,email"`
 
 	// On is the resource the user is scoped on.
-	On rbac.Resource
+	On rbac.Reference
 }
