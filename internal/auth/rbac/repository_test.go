@@ -4,6 +4,7 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/kytnacode/inventure/internal/auth/rbac"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -35,7 +36,7 @@ func compareModelAndData(
 		t.Errorf("expected role name to be '%v': got '%v'", expectedRole.Name, got.Name)
 	}
 
-	gotResource := rbac.NewResource(got.ResourceType, got.ResourceID.String(), nil)
+	gotResource := rbac.NewResource(got.ResourceType, got.ResourceID, nil)
 
 	if !gotResource.Equal(expectedRole.On) {
 		t.Errorf("expected role resource to be '%v': got '%v'", expectedRole.On, gotResource)
@@ -46,7 +47,7 @@ func compareModelAndData(
 	}
 
 	for _, a := range got.Accesses {
-		accessRes := rbac.NewResource(a.ResourceType, a.ResourceID.String(), nil)
+		accessRes := rbac.NewResource(a.ResourceType, a.ResourceID, nil)
 
 		var otherAccess *rbac.AccessData
 
@@ -83,7 +84,7 @@ func TestRepository_CreateRoleShouldCreateRole(t *testing.T) {
 
 	repo, db := newRepo(t)
 
-	res := rbac.NewResource("merchant", "308824cd-ba05-4a10-bb11-3e9cdeb8b276", nil)
+	res := rbac.NewResource("merchant", uuid.New(), nil)
 
 	roleData := rbac.RoleData{
 		Name: "admin",
@@ -97,7 +98,7 @@ func TestRepository_CreateRoleShouldCreateRole(t *testing.T) {
 		},
 		{
 			Perms: []rbac.Perm{"item-read", "item-del", "item-add"},
-			On:    rbac.NewResource("place", "f77cb426-bc42-4698-8755-815c8445dea6", &res),
+			On:    rbac.NewResource("place", uuid.New(), &res),
 		},
 	}
 
@@ -123,9 +124,9 @@ func TestRepository_CreateRoleShouldAppendToExistingRole(t *testing.T) {
 
 	repo, db := newRepo(t)
 
-	res := rbac.NewResource("merchant", "c2c84010-5c5c-43f3-a7fd-bd92cdc5f212", nil)
+	res := rbac.NewResource("merchant", uuid.New(), nil)
 
-	subRes := rbac.NewResource("place", "f4f4b9a9-7345-41c7-87b6-64763637df50", &res)
+	subRes := rbac.NewResource("place", uuid.New(), &res)
 
 	roleData := &rbac.RoleData{
 		Name: "admin",

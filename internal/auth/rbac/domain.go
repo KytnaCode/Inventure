@@ -2,12 +2,14 @@ package rbac
 
 import (
 	"fmt"
+
+	"github.com/google/uuid"
 )
 
 // Role is a role for RBAC.
 type Role struct {
 	// ID is role's unique ID.
-	ID string
+	ID uuid.UUID
 
 	// Name is role's unique name.
 	Name string
@@ -23,7 +25,7 @@ type Role struct {
 // Access is a permission grant for a role on a given resource.
 type Access struct {
 	// ID is access' unique ID.
-	ID string
+	ID uuid.UUID
 
 	// Role is the role which the permission is granted on.
 	Role *Role
@@ -44,12 +46,12 @@ type Resource struct {
 	Typ string
 
 	// ID is the resource unique ID.
-	ID string
+	ID uuid.UUID
 }
 
 // NewResource creates a new [Resource]. If parent is nil the resource will be interpreted as a
 // root resource.
-func NewResource(typ, id string, parent *Resource) Resource {
+func NewResource(typ string, id uuid.UUID, parent *Resource) Resource {
 	return Resource{
 		Typ:    typ,
 		ID:     id,

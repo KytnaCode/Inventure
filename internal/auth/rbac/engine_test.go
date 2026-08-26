@@ -6,6 +6,7 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/kytnacode/inventure/internal/auth/rbac"
 )
 
@@ -25,7 +26,7 @@ func (r *testResolver) IsSameOrAncestor(_ context.Context, a, b rbac.Resource) (
 	res := b
 
 	for {
-		res, ok := r.resources[res.Parent.Typ][res.Parent.ID]
+		res, ok := r.resources[res.Parent.Typ][res.Parent.ID.String()]
 		if !ok {
 			return false, nil
 		}
@@ -47,7 +48,7 @@ func TestEngine_AuthorizeShouldAuthorizeNoRequiredPermissions(t *testing.T) {
 
 	eng := newEngine(map[string]map[string]rbac.Resource{})
 
-	err := eng.Authorize(t.Context(), []rbac.Role{}, rbac.NewResource("project", "real-id", nil))
+	err := eng.Authorize(t.Context(), []rbac.Role{}, rbac.NewResource("project", uuid.New(), nil))
 	if err != nil {
 		t.Errorf("expected a nil error: got '%v'", err)
 	}
@@ -56,25 +57,25 @@ func TestEngine_AuthorizeShouldAuthorizeNoRequiredPermissions(t *testing.T) {
 func TestEngine_AuthorizeShouldReturnAnErrorOnNoApplicableRoles(t *testing.T) {
 	t.Parallel()
 
-	res := rbac.NewResource("merchant", "real-id", nil)
+	res := rbac.NewResource("merchant", uuid.New(), nil)
 
 	const perms rbac.Perm = "item-read"
 
 	resources := map[string]map[string]rbac.Resource{
 		res.Typ: {
-			res.ID: res,
+			res.ID.String(): res,
 		},
 	}
 
 	role := rbac.Role{
-		ID:   "real-role-id",
+		ID:   uuid.New(),
 		Name: "admin",
-		On:   rbac.NewResource("non", "applicable", nil),
+		On:   rbac.NewResource("non", uuid.New(), nil),
 	}
 
 	accesses := []rbac.Access{
 		{
-			ID:    "real-access-id",
+			ID:    uuid.New(),
 			Role:  &role,
 			On:    res,
 			Perms: []rbac.Perm{perms},
@@ -107,7 +108,7 @@ func TestEngine_AuthorizeShouldReturnAnErrorOnNoApplicableRoles(t *testing.T) {
 func TestEngine_AuthorizeShouldReutrnAnErrorOnMissingPermissions(t *testing.T) {
 	t.Parallel()
 
-	res := rbac.NewResource("merchant", "real-id", nil)
+	res := rbac.NewResource("merchant", uuid.New(), nil)
 
 	const missingPerm rbac.Perm = "item-del"
 
@@ -118,19 +119,19 @@ func TestEngine_AuthorizeShouldReutrnAnErrorOnMissingPermissions(t *testing.T) {
 
 	resources := map[string]map[string]rbac.Resource{
 		res.Typ: {
-			res.ID: res,
+			res.ID.String(): res,
 		},
 	}
 
 	role := rbac.Role{
-		ID:   "real-role-id",
+		ID:   uuid.New(),
 		Name: "admin",
 		On:   res,
 	}
 
 	accesses := []rbac.Access{
 		{
-			ID:    "real-access-id",
+			ID:    uuid.New(),
 			Role:  &role,
 			On:    res,
 			Perms: []rbac.Perm{"item-add", "item-read"},
@@ -163,7 +164,7 @@ func TestEngine_AuthorizeShouldReutrnAnErrorOnMissingPermissions(t *testing.T) {
 func TestEngine_AuthorizeShouldNotReturnErrorOnDirectlyRequiredPermissions(t *testing.T) {
 	t.Parallel()
 
-	res := rbac.NewResource("merchant", "real-id", nil)
+	res := rbac.NewResource("merchant", uuid.New(), nil)
 
 	requiredPermissions := []rbac.Perm{
 		"item-add",
@@ -173,19 +174,19 @@ func TestEngine_AuthorizeShouldNotReturnErrorOnDirectlyRequiredPermissions(t *te
 
 	resources := map[string]map[string]rbac.Resource{
 		res.Typ: {
-			res.ID: res,
+			res.ID.String(): res,
 		},
 	}
 
 	role := rbac.Role{
-		ID:   "real-role-id",
+		ID:   uuid.New(),
 		Name: "admin",
 		On:   res,
 	}
 
 	accesses := []rbac.Access{
 		{
-			ID:    "real-access-id",
+			ID:    uuid.New(),
 			Role:  &role,
 			On:    res,
 			Perms: requiredPermissions,
@@ -205,7 +206,7 @@ func TestEngine_AuthorizeShouldNotReturnErrorOnDirectlyRequiredPermissions(t *te
 func TestEngine_AuthorizeShouldNotReturnErrorWhenMultipleRolesHaveRequiredPerms(t *testing.T) {
 	t.Parallel()
 
-	res := rbac.NewResource("merchant", "real-id", nil)
+	res := rbac.NewResource("merchant", uuid.New(), nil)
 
 	roleAPerms := []rbac.Perm{
 		"item-read",
@@ -220,19 +221,19 @@ func TestEngine_AuthorizeShouldNotReturnErrorWhenMultipleRolesHaveRequiredPerms(
 
 	resources := map[string]map[string]rbac.Resource{
 		res.Typ: {
-			res.ID: res,
+			res.ID.String(): res,
 		},
 	}
 
 	roleA := rbac.Role{
-		ID:   "role-a-id",
+		ID:   uuid.New(),
 		Name: "role-a",
 		On:   res,
 	}
 
 	roleAAcceses := []rbac.Access{
 		{
-			ID:    "access-a-id",
+			ID:    uuid.New(),
 			On:    res,
 			Role:  &roleA,
 			Perms: roleAPerms,
@@ -242,14 +243,14 @@ func TestEngine_AuthorizeShouldNotReturnErrorWhenMultipleRolesHaveRequiredPerms(
 	roleA.Accesses = roleAAcceses
 
 	roleB := rbac.Role{
-		ID:   "role-b-id",
+		ID:   uuid.New(),
 		Name: "role-b",
 		On:   res,
 	}
 
 	roleBAcceses := []rbac.Access{
 		{
-			ID:    "access-b-id",
+			ID:    uuid.New(),
 			On:    res,
 			Role:  &roleB,
 			Perms: roleBPerms,
@@ -269,8 +270,8 @@ func TestEngine_AuthorizeShouldNotReturnErrorWhenMultipleRolesHaveRequiredPerms(
 func TestEngine_AuthorizeShouldInheritPermissions(t *testing.T) {
 	t.Parallel()
 
-	resParent := rbac.NewResource("tenant", "real-tenant-id", nil)
-	resChild := rbac.NewResource("merchant", "real-merchant-id", &resParent)
+	resParent := rbac.NewResource("tenant", uuid.New(), nil)
+	resChild := rbac.NewResource("merchant", uuid.New(), &resParent)
 
 	requiredPermissions := []rbac.Perm{
 		"item-add",
@@ -280,22 +281,22 @@ func TestEngine_AuthorizeShouldInheritPermissions(t *testing.T) {
 
 	resources := map[string]map[string]rbac.Resource{
 		resParent.Typ: {
-			resParent.ID: resParent,
+			resParent.ID.String(): resParent,
 		},
 		resChild.Typ: {
-			resChild.ID: resChild,
+			resChild.ID.String(): resChild,
 		},
 	}
 
 	role := rbac.Role{
-		ID:   "real-role-id",
+		ID:   uuid.New(),
 		Name: "admin",
 		On:   resParent,
 	}
 
 	accesses := []rbac.Access{
 		{
-			ID:    "real-access-id",
+			ID:    uuid.New(),
 			Role:  &role,
 			On:    resParent,
 			Perms: requiredPermissions,
@@ -315,7 +316,7 @@ func TestEngine_AuthorizeShouldInheritPermissions(t *testing.T) {
 func TestEngine_AuthorizeShouldReturnErrorWhenNoAccess(t *testing.T) {
 	t.Parallel()
 
-	res := rbac.NewResource("merchant", "real-id", nil)
+	res := rbac.NewResource("merchant", uuid.New(), nil)
 
 	requiredPermissions := []rbac.Perm{
 		"item-add",
@@ -325,12 +326,12 @@ func TestEngine_AuthorizeShouldReturnErrorWhenNoAccess(t *testing.T) {
 
 	resources := map[string]map[string]rbac.Resource{
 		res.Typ: {
-			res.ID: res,
+			res.ID.String(): res,
 		},
 	}
 
 	role := rbac.Role{
-		ID:   "real-role-id",
+		ID:   uuid.New(),
 		Name: "admin",
 		On:   res,
 	}
