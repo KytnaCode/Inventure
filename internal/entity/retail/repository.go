@@ -6,8 +6,8 @@ import (
 
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
-	"github.com/kytnacode/inventure/internal/item"
-	"github.com/kytnacode/inventure/internal/retail/placepath"
+	"github.com/kytnacode/inventure/internal/entity/item"
+	"github.com/kytnacode/inventure/internal/entity/retail/placepath"
 	"gorm.io/gorm"
 )
 

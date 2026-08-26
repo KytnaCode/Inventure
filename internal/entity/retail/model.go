@@ -5,9 +5,9 @@ import (
 	"slices"
 
 	"github.com/google/uuid"
-	"github.com/kytnacode/inventure/internal/item"
-	"github.com/kytnacode/inventure/internal/retail/placepath"
-	"github.com/kytnacode/inventure/internal/user"
+	"github.com/kytnacode/inventure/internal/entity/item"
+	"github.com/kytnacode/inventure/internal/entity/retail/placepath"
+	"github.com/kytnacode/inventure/internal/entity/user"
 )
 
 // Model is the database representation of a [Retail].

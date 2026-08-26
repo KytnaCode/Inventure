@@ -5,7 +5,7 @@ import (
 	"slices"
 
 	"github.com/google/uuid"
-	"github.com/kytnacode/inventure/internal/item"
+	"github.com/kytnacode/inventure/internal/entity/item"
 )
 
 // Retail is a physic or logic sell point that manage users and storage.

@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/go-playground/validator/v10"
-	"github.com/kytnacode/inventure/internal/item"
+	"github.com/kytnacode/inventure/internal/entity/item"
 	"github.com/kytnacode/inventure/validation"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"

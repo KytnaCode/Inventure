@@ -2,8 +2,8 @@ package tenant
 
 import (
 	"github.com/google/uuid"
-	"github.com/kytnacode/inventure/internal/retail"
-	"github.com/kytnacode/inventure/internal/user"
+	"github.com/kytnacode/inventure/internal/entity/retail"
+	"github.com/kytnacode/inventure/internal/entity/user"
 	"gorm.io/gorm"
 )
 

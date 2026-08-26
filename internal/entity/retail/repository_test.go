@@ -6,9 +6,9 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/kytnacode/inventure/internal/item"
-	"github.com/kytnacode/inventure/internal/retail"
-	"github.com/kytnacode/inventure/internal/user"
+	"github.com/kytnacode/inventure/internal/entity/item"
+	"github.com/kytnacode/inventure/internal/entity/retail"
+	"github.com/kytnacode/inventure/internal/entity/user"
 	"github.com/kytnacode/inventure/validation"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
