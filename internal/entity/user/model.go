@@ -2,7 +2,7 @@ package user
 
 import (
 	"github.com/google/uuid"
-	"github.com/kytnacode/inventure/internal/auth/rbac"
+	"github.com/kytnacode/inventure/internal/entity"
 	"gorm.io/gorm"
 )
 
@@ -41,6 +41,6 @@ func (m *Model) ToDomain() *User {
 		ID:    m.ID,
 		Name:  m.Name,
 		Email: m.Email,
-		On:    rbac.NewReference(m.ResourceType, m.ResourceID, nil),
+		On:    entity.NewReference(m.ResourceType, m.ResourceID, nil),
 	}
 }

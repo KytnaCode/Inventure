@@ -69,35 +69,5 @@ func (r *Resource) Equal(other Resource) bool {
 	return r.Typ == other.Typ && r.ID == other.ID
 }
 
-// Reference is a resource reference, can optionally contains a parent reference, but it should not
-// be interpreted as a root resource if parent's reference is missing.
-type Reference struct {
-	Typ    string
-	ID     uuid.UUID
-	Parent *Reference
-}
-
-// NewReference returns a resource reference, can optionally contain a parent reference, a nil
-// parent reference must be interpreted as 'unknown' parent, resource may or not have a parent
-// but is not loaded.
-func NewReference(typ string, id uuid.UUID, parent *Reference) Reference {
-	return Reference{
-		Parent: parent,
-		Typ:    typ,
-		ID:     id,
-	}
-}
-
-// String returns a string representation of the reference.
-func (r *Reference) String() string {
-	return fmt.Sprintf("[%v: %v]", r.Typ, r.ID)
-}
-
-// Equal check if a reference is equal to another. Reference's parent is not considered for
-// equality.
-func (r *Reference) Equal(other Reference) bool {
-	return r.Typ == other.Typ && r.ID == other.ID
-}
-
 // Perm is a permission that can be granted.
 type Perm string
