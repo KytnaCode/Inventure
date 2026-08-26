@@ -81,22 +81,17 @@ func (r *Repository) CreateRole(
 func (r *Repository) getOrCreateRole(tx *gorm.DB, data *RoleData) (id uuid.UUID, err error) {
 	var roleID RoleModel
 
-	resID, err := uuid.Parse(data.On.ID)
-	if err != nil {
-		return uuid.UUID{}, fmt.Errorf("invalid role's resource ID: %w", err)
-	}
-
 	err = tx.Model(&RoleModel{}).
 		Where(&RoleModel{
 			Name:         data.Name,
 			ResourceType: data.On.Typ,
-			ResourceID:   resID,
+			ResourceID:   data.On.ID,
 		}).
 		Attrs(&RoleModel{
 			ID:           uuid.New(),
 			Name:         data.Name,
 			ResourceType: data.On.Typ,
-			ResourceID:   resID,
+			ResourceID:   data.On.ID,
 		}).
 		FirstOrCreate(&roleID).Error
 	if err != nil {
@@ -112,18 +107,13 @@ func (r *Repository) createAccess(
 	roleID uuid.UUID,
 	access *AccessData,
 ) error {
-	resID, err := uuid.Parse(access.On.ID)
-	if err != nil {
-		return fmt.Errorf("invalid resource ID: %w", err)
-	}
-
 	var m AccessModel
 
-	err = tx.Model(&AccessModel{}).
+	err := tx.Model(&AccessModel{}).
 		Where(&AccessModel{
 			RoleID:       roleID,
 			ResourceType: access.On.Typ,
-			ResourceID:   resID,
+			ResourceID:   access.On.ID,
 		}).
 		Select("id", "perms").
 		Take(&m).Error
@@ -156,16 +146,11 @@ func (r *Repository) updateAccess(tx *gorm.DB, access *AccessModel, data *Access
 
 // newAccess creates a new access on the database.
 func (r *Repository) newAccess(tx *gorm.DB, roleID uuid.UUID, access *AccessData) error {
-	resID, err := uuid.Parse(access.On.ID)
-	if err != nil {
-		return fmt.Errorf("could not parse resource ID: %w", err)
-	}
-
-	err = tx.Create(&AccessModel{
+	err := tx.Create(&AccessModel{
 		ID:           uuid.New(),
 		Perms:        permToSlice(access.Perms),
 		ResourceType: access.On.Typ,
-		ResourceID:   resID,
+		ResourceID:   access.On.ID,
 		RoleID:       roleID,
 	}).Error
 	if err != nil {
