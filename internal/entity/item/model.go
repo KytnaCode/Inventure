@@ -29,6 +29,11 @@ type Model struct {
 	PlaceID uuid.UUID
 }
 
+// TableName returns item's table name. Implements [gorm/schema.Tabler].
+func (m *Model) TableName() string {
+	return "items"
+}
+
 // NewModel validates data and returns a new [Model].
 func NewModel(v *validator.Validate, data *Data) (*Model, error) {
 	if err := v.Struct(data); err != nil {
