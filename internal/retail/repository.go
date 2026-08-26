@@ -15,6 +15,9 @@ import (
 type Data struct {
 	// Name is retail's display name.
 	Name string
+
+	// TenantID is the tenant the retail belongs, required. MUST exists.
+	TenantID uuid.UUID
 }
 
 // Reference contains a reference to a resource.
@@ -86,8 +89,9 @@ func (r *Repository) createRetail(tx *gorm.DB, data *Data) (uuid.UUID, error) {
 	retailID := uuid.New()
 
 	m := &Model{
-		ID:   retailID,
-		Name: data.Name,
+		ID:       retailID,
+		Name:     data.Name,
+		TenantID: data.TenantID,
 	}
 
 	if err := r.v.Struct(m); err != nil {
