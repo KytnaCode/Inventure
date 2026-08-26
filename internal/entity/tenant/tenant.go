@@ -4,7 +4,7 @@ import (
 	"os/user"
 
 	"github.com/google/uuid"
-	"github.com/kytnacode/inventure/internal/retail"
+	"github.com/kytnacode/inventure/internal/entity/retail"
 )
 
 // Tenant represents a company that can manage multiple retails.
