@@ -2,6 +2,7 @@ package user
 
 import (
 	"github.com/google/uuid"
+	"github.com/kytnacode/inventure/internal/auth/rbac"
 	"gorm.io/gorm"
 )
 
@@ -32,4 +33,14 @@ type Model struct {
 // TableName implements [gorm/schema.Tabler].
 func (m *Model) TableName() string {
 	return "users"
+}
+
+// ToDomain converts a model into a domain user representation.
+func (m *Model) ToDomain() *User {
+	return &User{
+		ID:    m.ID,
+		Name:  m.Name,
+		Email: m.Email,
+		On:    rbac.NewReference(m.ResourceType, m.ResourceID, nil),
+	}
 }
