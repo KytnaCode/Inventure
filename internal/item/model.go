@@ -36,12 +36,11 @@ func NewModel(v *validator.Validate, data *Data) (*Model, error) {
 	}
 
 	m := &Model{
-		ID:      uuid.New(),
-		Name:    data.Name,
-		Desc:    data.Desc,
-		Stock:   data.Stock,
-		Attrs:   data.Attrs,
-		PlaceID: data.PlaceID,
+		ID:    uuid.New(),
+		Name:  data.Name,
+		Desc:  data.Desc,
+		Stock: data.Stock,
+		Attrs: data.Attrs,
 	}
 
 	return m, nil
