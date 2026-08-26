@@ -4,6 +4,7 @@ import (
 	"os/user"
 	"slices"
 
+	"github.com/google/uuid"
 	"github.com/kytnacode/inventure/internal/item"
 )
 
@@ -20,6 +21,9 @@ type Retail struct {
 
 	// Storage manages retail's stock
 	Storage Place
+
+	// TenantID is the ID of the tenant the retails belongs to.
+	TenantID uuid.UUID
 }
 
 // Place is a physical or logic, place where items are stored, can have children places and can

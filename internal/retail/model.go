@@ -23,6 +23,9 @@ type Model struct {
 
 	// Storage is the root place where items are stored.
 	Storage PlaceModel `gorm:"foreignKey:RetailID"`
+
+	// TenantID is the ID of the tenant the retails belongs to, a retail MUST be part of a tenant.
+	TenantID uuid.UUID
 }
 
 // TableName returns retail's table name. Implements [gorm/schema.Tabler].

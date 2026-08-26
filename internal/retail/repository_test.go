@@ -126,6 +126,10 @@ func TestRepository_CreateRetailShouldInsertRetailData(t *testing.T) {
 	if m.Name != data.Name {
 		t.Fatalf("expected retail name to be '%v': got '%v'", data.Name, m.Name)
 	}
+
+	if m.TenantID != data.TenantID {
+		t.Fatalf("expected retail's tenant ID to be '%v': got '%v'", data.TenantID, m.TenantID)
+	}
 }
 
 func TestRepository_CreateRetailShouldRequireName(t *testing.T) {
