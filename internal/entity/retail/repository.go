@@ -7,7 +7,6 @@ import (
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
 	"github.com/kytnacode/inventure/internal/entity/item"
-	"github.com/kytnacode/inventure/internal/entity/retail/placepath"
 	"gorm.io/gorm"
 )
 
@@ -43,8 +42,9 @@ type PlaceData struct {
 
 // Repository handles business logic for retails and places.
 type Repository struct {
-	db *gorm.DB
-	v  *validator.Validate
+	db  *gorm.DB
+	v   *validator.Validate
+	dao *DAO
 }
 
 // NewRepository creates a new [Repository].
@@ -52,6 +52,9 @@ func NewRepository(db *gorm.DB, v *validator.Validate) *Repository {
 	return &Repository{
 		db: db,
 		v:  v,
+		dao: &DAO{
+			v: v,
+		},
 	}
 }
 
@@ -64,12 +67,12 @@ func (r *Repository) CreateRetail(
 	var newID string
 
 	err = r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		retailID, err := r.createRetail(tx, retailData)
+		retailID, err := r.dao.CreateRetail(tx, retailData)
 		if err != nil {
 			return err
 		}
 
-		err = r.createPlace(tx, retailID, storage, "/")
+		err = r.dao.CreatePlace(tx, retailID, storage, "/")
 		if err != nil {
 			return err
 		}
@@ -83,78 +86,6 @@ func (r *Repository) CreateRetail(
 	}
 
 	return newID, nil
-}
-
-func (r *Repository) createRetail(tx *gorm.DB, data *Data) (uuid.UUID, error) {
-	retailID := uuid.New()
-
-	m := &Model{
-		ID:       retailID,
-		Name:     data.Name,
-		TenantID: data.TenantID,
-	}
-
-	if err := r.v.Struct(m); err != nil {
-		return uuid.UUID{}, fmt.Errorf("invalid retail data: %w", err)
-	}
-
-	err := tx.Create(m).Error
-	if err != nil {
-		return uuid.UUID{}, fmt.Errorf("could not create retail: %w", err)
-	}
-
-	return retailID, nil
-}
-
-func (r *Repository) createPlace(
-	tx *gorm.DB,
-	retailID uuid.UUID,
-	data *PlaceData,
-	placePath string,
-) error {
-	m := &PlaceModel{
-		ID:       uuid.New(),
-		Name:     data.Name,
-		RetailID: retailID,
-	}
-
-	placePath = placepath.Join(placePath, m.ID.String())
-
-	m.Path = placepath.TrimLeftPath(placePath)
-
-	err := tx.Create(m).Error
-	if err != nil {
-		return fmt.Errorf("could not create place: %w", err)
-	}
-
-	items := make([]*item.Model, 0, len(data.Items))
-
-	for _, itemData := range data.Items {
-		itemModel, err := item.NewModel(r.v, &itemData)
-		if err != nil {
-			return err
-		}
-
-		itemModel.PlaceID = m.ID
-
-		items = append(items, itemModel)
-	}
-
-	if len(items) > 0 {
-		err = tx.Create(&items).Error
-		if err != nil {
-			return fmt.Errorf("could not create place items: %w", err)
-		}
-	}
-
-	for _, child := range data.Children {
-		err = r.createPlace(tx, retailID, &child, placePath)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
 }
 
 func itemModelToDomain(models []item.Model) []item.Item {
