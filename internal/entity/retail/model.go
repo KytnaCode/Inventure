@@ -42,7 +42,7 @@ type PlaceModel struct {
 	// Name is place's name, must be unique between siblings.
 	Name string `gorm:"uniqueIndex:idx_name"`
 
-	RetailID uuid.UUID
+	RetailID uuid.UUID `gorm:"uniqueIndex:idx_name"`
 
 	// Items are the items that reside directly on this place.
 	Items []item.Model `gorm:"foreignKey:PlaceID"`
