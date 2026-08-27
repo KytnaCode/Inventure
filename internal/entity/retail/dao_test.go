@@ -1,7 +1,9 @@
 package retail_test
 
 import (
+	"cmp"
 	"errors"
+	"slices"
 	"testing"
 
 	"github.com/go-playground/validator/v10"
@@ -79,6 +81,59 @@ func TestDAO_CreateRetailShouldCreateRetail(t *testing.T) {
 
 	if data.TenantID != got.TenantID {
 		t.Errorf("expected tenant id to be '%v': got '%v'", data.TenantID, got.TenantID)
+	}
+}
+
+func TestDAO_CreateRetailListShouldCreateRetails(t *testing.T) {
+	t.Parallel()
+
+	dao, db := newDAO(t)
+
+	data := []retail.Data{
+		{
+			Name:     "real retail",
+			TenantID: uuid.New(),
+		},
+		{
+			Name:     "other real retail",
+			TenantID: uuid.New(),
+		},
+	}
+
+	ids, err := dao.CreateRetailsList(db, data)
+	if err != nil {
+		t.Fatalf("expected a nil error: %v", err)
+	}
+
+	var gotRetails []retail.Model
+
+	err = db.WithContext(t.Context()).Where("id IN ?", ids).Find(&gotRetails).Error
+	if err != nil {
+		t.Fatalf("could not get inserted retail: %v", err)
+	}
+
+	slices.SortFunc(gotRetails, func(a, b retail.Model) int {
+		return cmp.Compare(a.Name, b.Name)
+	})
+
+	slices.SortFunc(data, func(a, b retail.Data) int {
+		return cmp.Compare(a.Name, b.Name)
+	})
+
+	if len(gotRetails) != len(data) {
+		t.Fatalf("expected '%v' retails: got '%v'", len(data), len(gotRetails))
+	}
+
+	for i, got := range gotRetails {
+		expected := data[i]
+
+		if expected.Name != got.Name {
+			t.Errorf("expected name to be '%v': got '%v'", expected.Name, got.Name)
+		}
+
+		if expected.TenantID != got.TenantID {
+			t.Errorf("expected tenant id to be '%v': got '%v'", expected.TenantID, got.TenantID)
+		}
 	}
 }
 
