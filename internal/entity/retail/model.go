@@ -19,7 +19,7 @@ type Model struct {
 	Name string `validate:"required,resourcename"`
 
 	// Users are the users the retail has.
-	Users []user.Model `gorm:"polymorphic:Resource;" validate:"dive"`
+	Users []user.Model `gorm:"many2many:retail_users;" validate:"dive"`
 
 	// Storage is the root place where items are stored.
 	Storage PlaceModel `gorm:"foreignKey:RetailID"`
