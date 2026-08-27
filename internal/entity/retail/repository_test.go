@@ -111,7 +111,7 @@ func TestRepository_CreateRetailShouldInsertRetailData(t *testing.T) {
 		Name: "read retail name",
 	}
 
-	id, err := repo.CreateRetail(t.Context(), data, &retail.PlaceData{})
+	id, err := repo.CreateRetail(t.Context(), data)
 	if err != nil {
 		t.Fatalf("expected a nil error: %v", err)
 	}
@@ -139,7 +139,7 @@ func TestRepository_CreateRetailShouldRequireName(t *testing.T) {
 
 	data := &retail.Data{}
 
-	id, err := repo.CreateRetail(t.Context(), data, &retail.PlaceData{})
+	id, err := repo.CreateRetail(t.Context(), data)
 	if id != "" {
 		t.Errorf("expected an empty ID: got '%v'", id)
 	}
@@ -154,11 +154,7 @@ func TestRepository_CreateRetailShouldCreatePlacesAndItems(t *testing.T) {
 
 	repo, db := newRepo(t)
 
-	data := &retail.Data{
-		Name: "real retail name",
-	}
-
-	storage := &retail.PlaceData{
+	storage := retail.PlaceData{
 		Name: "place 1",
 		Items: []item.Data{
 			{
@@ -197,7 +193,12 @@ func TestRepository_CreateRetailShouldCreatePlacesAndItems(t *testing.T) {
 		},
 	}
 
-	id, err := repo.CreateRetail(t.Context(), data, storage)
+	data := &retail.Data{
+		Name:    "real retail name",
+		Storage: &storage,
+	}
+
+	id, err := repo.CreateRetail(t.Context(), data)
 	if err != nil {
 		t.Fatalf("could not create retail: %v", err)
 	}
@@ -215,5 +216,5 @@ func TestRepository_CreateRetailShouldCreatePlacesAndItems(t *testing.T) {
 
 	p := retail.PlaceFromModel(m)
 
-	comparePlace(t, storage, p)
+	comparePlace(t, data.Storage, p)
 }

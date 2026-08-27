@@ -17,6 +17,9 @@ type Data struct {
 
 	// TenantID is the tenant the retail belongs, required. MUST exists.
 	TenantID uuid.UUID
+
+	// Storage is the data for retail's root storage. If missing a default storage will be created.
+	Storage *PlaceData
 }
 
 // Reference contains a reference to a resource.
@@ -62,17 +65,11 @@ func NewRepository(db *gorm.DB, v *validator.Validate) *Repository {
 func (r *Repository) CreateRetail(
 	ctx context.Context,
 	retailData *Data,
-	storage *PlaceData,
 ) (id string, err error) {
 	var newID string
 
 	err = r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		retailID, err := r.dao.CreateRetail(tx, retailData)
-		if err != nil {
-			return err
-		}
-
-		err = r.dao.CreatePlace(tx, retailID, storage, "/")
 		if err != nil {
 			return err
 		}

@@ -27,11 +27,25 @@ func (d *DAO) CreateRetailsList(tx *gorm.DB, data []Data) ([]uuid.UUID, error) {
 	models := make([]Model, 0, len(data))
 
 	for _, retailData := range data {
-		models = append(models, Model{
+		m := Model{
 			ID:       uuid.New(),
 			Name:     retailData.Name,
 			TenantID: retailData.TenantID,
-		})
+		}
+
+		storage := retailData.Storage
+		if storage == nil {
+			storage = &PlaceData{
+				Name: "Storage",
+			}
+		}
+
+		err := d.CreatePlace(tx, m.ID, storage, "/")
+		if err != nil {
+			return nil, fmt.Errorf("could not create retail: %w", err)
+		}
+
+		models = append(models, m)
 	}
 
 	var err error
