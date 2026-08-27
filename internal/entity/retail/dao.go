@@ -22,24 +22,52 @@ func NewDAO(v *validator.Validate) *DAO {
 	}
 }
 
+// CreateRetailsList creates a list of retails and returns its IDs.
+func (d *DAO) CreateRetailsList(tx *gorm.DB, data []Data) ([]uuid.UUID, error) {
+	models := make([]Model, 0, len(data))
+
+	for _, retailData := range data {
+		models = append(models, Model{
+			ID:       uuid.New(),
+			Name:     retailData.Name,
+			TenantID: retailData.TenantID,
+		})
+	}
+
+	var err error
+
+	if len(models) == 1 {
+		err = d.v.Struct(models[0])
+	} else {
+		err = d.v.Var(models, "dive")
+	}
+
+	if err != nil {
+		return nil, fmt.Errorf("invalid retail data: %w", err)
+	}
+
+	err = tx.Create(models).Error
+	if err != nil {
+		return nil, fmt.Errorf("could not create retail: %w", err)
+	}
+
+	ids := make([]uuid.UUID, 0, len(models))
+
+	for _, m := range models {
+		ids = append(ids, m.ID)
+	}
+
+	return ids, nil
+}
+
 // CreateRetail creates a new retail and returns its ID.
 func (d *DAO) CreateRetail(tx *gorm.DB, data *Data) (uuid.UUID, error) {
-	m := &Model{
-		ID:       uuid.New(),
-		Name:     data.Name,
-		TenantID: data.TenantID,
-	}
-
-	if err := d.v.Struct(m); err != nil {
-		return uuid.UUID{}, fmt.Errorf("invalid retail data: %w", err)
-	}
-
-	err := tx.Create(m).Error
+	ids, err := d.CreateRetailsList(tx, []Data{*data})
 	if err != nil {
-		return uuid.UUID{}, fmt.Errorf("could not create retail: %w", err)
+		return uuid.UUID{}, err
 	}
 
-	return m.ID, nil
+	return ids[0], nil
 }
 
 // CreatePlace creates a place in a retail.
