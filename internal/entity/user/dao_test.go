@@ -51,8 +51,6 @@ func TestDAO_ExistsShouldReturnTrueIfExists(t *testing.T) {
 		ID:           userID,
 		Name:         "username",
 		Email:        "real@email.com",
-		ResourceType: "tenant",
-		ResourceID:   uuid.New(),
 		PasswordHash: nil,
 	}).Error
 	if err != nil {

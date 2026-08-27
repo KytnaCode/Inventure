@@ -2,7 +2,6 @@ package user
 
 import (
 	"github.com/google/uuid"
-	"github.com/kytnacode/inventure/internal/entity"
 	"gorm.io/gorm"
 )
 
@@ -22,12 +21,6 @@ type Model struct {
 	// PasswordHash is user's password hash for users using baked-in auth, nil for non baked-in auth
 	// users.
 	PasswordHash *string
-
-	// ResourceType is the type of the resource the user belongs to.
-	ResourceType string
-
-	// ResourceID is the ID of the resource the user belongs to.
-	ResourceID uuid.UUID
 }
 
 // TableName implements [gorm/schema.Tabler].
@@ -41,6 +34,5 @@ func (m *Model) ToDomain() *User {
 		ID:    m.ID,
 		Name:  m.Name,
 		Email: m.Email,
-		On:    entity.NewReference(m.ResourceType, m.ResourceID, nil),
 	}
 }

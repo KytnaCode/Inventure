@@ -18,7 +18,7 @@ type Model struct {
 	Name string
 
 	// Users are tenant-scoped users.
-	Users []user.Model
+	Users []user.Model `gorm:"many2many:tenant_users;"`
 
 	// Retails are tenant-owned retails.
 	Retails []retail.Model
