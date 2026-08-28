@@ -181,15 +181,9 @@ func TestDAO_CreatePlaceShouldCreatePlace(t *testing.T) {
 		t.Fatalf("expected a nil error: %v", err)
 	}
 
-	var got []retail.PlaceModel
-
-	err = db.WithContext(t.Context()).
-		Where("retail_id = ?", retailID).
-		Where("path LIKE '/%'").
-		Preload("Items").
-		Find(&got).Error
+	got, err := dao.GetRetailPlaces(db, retailID)
 	if err != nil {
-		t.Fatalf("could not get inserted places: %v", err)
+		t.Fatalf("could not get places: %v", err)
 	}
 
 	domain := retail.PlaceFromModel(got)

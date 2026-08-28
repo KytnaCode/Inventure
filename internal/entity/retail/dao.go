@@ -135,3 +135,18 @@ func (d *DAO) CreatePlace(
 
 	return nil
 }
+
+// GetRetailPlaces get all places that belong to a given retail.
+func (d *DAO) GetRetailPlaces(tx *gorm.DB, retailID uuid.UUID) ([]PlaceModel, error) {
+	var places []PlaceModel
+
+	err := tx.Where("retail_id = ?", retailID).
+		Where("path LIKE '/%'").
+		Preload("Items").
+		Find(&places).Error
+	if err != nil {
+		return nil, fmt.Errorf("could not get retail places: %w", err)
+	}
+
+	return places, nil
+}
