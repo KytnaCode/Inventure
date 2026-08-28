@@ -50,8 +50,8 @@ func (r *Repository) CreateRole(
 	ctx context.Context,
 	data *RoleData,
 	accesses ...AccessData,
-) (string, error) {
-	var newID string
+) (uuid.UUID, error) {
+	var newID uuid.UUID
 
 	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		roleID, err := r.getOrCreateRole(tx, data)
@@ -66,12 +66,12 @@ func (r *Repository) CreateRole(
 			}
 		}
 
-		newID = roleID.String()
+		newID = roleID
 
 		return nil
 	})
 	if err != nil {
-		return "", fmt.Errorf("could not create role: %w", err)
+		return uuid.UUID{}, fmt.Errorf("could not create role: %w", err)
 	}
 
 	return newID, nil
