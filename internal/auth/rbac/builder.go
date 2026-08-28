@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 // ErrMissingRoleData is returned by [Builder] when required role data is not set with the given
@@ -21,7 +22,7 @@ type roleCreator interface {
 // concurrent use.
 //
 //	// Usage:
-//	id, err := RoleBuilder(rbacRepository).
+//	id, err := RoleBuilder().WithRepo(repo).
 //	  Name("role-name").BelongsTo(ownerResource).
 //	  On(resource1).Allow("item-add", "item-del"). // grants permissions on resource1.
 //	  Remove(resource1). // remove granted permissions on resource1.
@@ -30,7 +31,14 @@ type roleCreator interface {
 //	  On(resource3).Allow("item-add").Allow("item-del"). // Multiple allow calls are merged
 //	  Build(ctx)
 type Builder struct {
-	// repo is used to create the role on [Builder.Build] call.
+	// db is used if [Builder.WithDB] is called, used for low-level operations.
+	db *gorm.DB
+
+	// dao is used if [Builder.WithDB] is called, used for low-level operations.
+	dao *DAO
+
+	// repo is used if [Builder.WithRepo] is called, used for high-level operations to create
+	// the role on [Builder.Build] call.
 	repo roleCreator
 
 	// roleOn is the final role resource, using a pointer to check nil resource easier.
@@ -56,13 +64,29 @@ type Builder struct {
 	temporaryPermissions []Perm
 }
 
-// RoleBuilder creates a new [Builder] with the given repo.
-func RoleBuilder(repo roleCreator) *Builder {
+// RoleBuilder creates a new [Builder].
+func RoleBuilder() *Builder {
 	return &Builder{
-		repo:                 repo,
+		dao:                  NewDAO(),
 		accesses:             make(map[string]*AccessData, 8),
 		temporaryPermissions: make([]Perm, 0, 10),
 	}
+}
+
+// WithRepo uses a high-level repository for operations.
+func (b *Builder) WithRepo(repo roleCreator) *Builder {
+	b.repo = repo
+	b.db = nil
+
+	return b
+}
+
+// WithDB uses a database for persistence, used ofr low-level operations.
+func (b *Builder) WithDB(db *gorm.DB) *Builder {
+	b.repo = nil
+	b.db = db
+
+	return b
 }
 
 // On is used before [Builder.Allow] to specify on which resource allow permissions
@@ -168,7 +192,23 @@ func (b *Builder) Build(ctx context.Context) (uuid.UUID, error) {
 		accesses = append(accesses, *v)
 	}
 
-	id, err := b.repo.CreateRole(ctx, &b.role, accesses...)
+	var (
+		id  uuid.UUID
+		err error
+	)
+
+	switch {
+	case b.repo != nil:
+		id, err = b.repo.CreateRole(ctx, &b.role, accesses...)
+	case b.db != nil && b.dao != nil:
+		id, err = b.dao.CreateRole(b.db, &b.role, accesses...)
+	default:
+		return uuid.UUID{}, fmt.Errorf(
+			"missing persitence backend, use Builder.WithRepo() or Builder.WithDB() to set one: %w",
+			ErrMissingRoleData,
+		)
+	}
+
 	if err != nil {
 		return uuid.UUID{}, fmt.Errorf("could not create role: %w", err)
 	}
