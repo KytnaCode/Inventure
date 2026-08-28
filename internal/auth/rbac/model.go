@@ -41,13 +41,13 @@ type AccessModel struct {
 	ID uuid.UUID `gorm:"primaryKey"`
 
 	// RoleID is the role which the access is granted on.
-	RoleID uuid.UUID
+	RoleID uuid.UUID `gorm:"uniqueIndex:idx_resource,where:deleted_at IS NULL,priority:2"`
 
 	// Perms is the list of permissions granted to the role.
 	Perms sqltypes.List
 
 	// ResourceType is the type of the resource the access is granting permissions on.
-	ResourceType string `gorm:"uniqueIndex:idx_resource,where:deleted_at IS NULL,priority:2"`
+	ResourceType string `gorm:"uniqueIndex:idx_resource,where:deleted_at IS NULL,priority:3"`
 
 	// ResourceID is the ID of the resource the access is granting permissions on.
 	ResourceID uuid.UUID `gorm:"uniqueIndex:idx_resource,where:deleted_at IS NULL,priority:1"`
