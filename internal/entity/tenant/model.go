@@ -21,7 +21,7 @@ type Model struct {
 	Users []user.Model `gorm:"many2many:tenant_users;"`
 
 	// Retails are tenant-owned retails.
-	Retails []retail.Model
+	Retails []retail.Model `gorm:"foreignKey:TenantID"`
 }
 
 // TableName returns tenant's table name. Implements [gorm/schema.Tabler].
