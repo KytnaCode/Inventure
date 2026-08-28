@@ -23,4 +23,7 @@ var (
 
 	// CodeWrongCSRFToken is returned if session's token mismatch with request header's.
 	CodeWrongCSRFToken = api.NewCode(5)
+
+	// CodeMissingPerms indicates user has not required permissions for the requested action.
+	CodeMissingPerms = api.NewCode(6)
 )
