@@ -23,6 +23,9 @@ type RetailData struct {
 	Storage *retail.PlaceData
 }
 
+// Ensure [Repository] implements [tenantRepository].
+var _ tenantRepository = &Repository{}
+
 // Repository handles high level persistence logic for tenants.
 type Repository struct {
 	db        *gorm.DB
