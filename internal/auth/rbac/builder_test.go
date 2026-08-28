@@ -53,7 +53,7 @@ func TestBuilderShouldRequireRoleName(t *testing.T) {
 
 	res := rbac.NewResource("tenant", uuid.New(), nil)
 
-	id, err := rbac.RoleBuilder(&testRepository{}).
+	id, err := rbac.RoleBuilder().WithRepo(&testRepository{}).
 		// Name("admin").
 		BelongsTo(res).
 		On(res).Allow("tenant-mod", "tenant-del").
@@ -76,7 +76,7 @@ func TestBuilderShouldRequireRoleResource(t *testing.T) {
 
 	res := rbac.NewResource("tenant", uuid.New(), nil)
 
-	id, err := rbac.RoleBuilder(&testRepository{}).
+	id, err := rbac.RoleBuilder().WithRepo(&testRepository{}).
 		Name("admin").
 		// BelongsTo(res).
 		On(res).Allow("tenant-mod", "tenant-del").
@@ -99,7 +99,7 @@ func TestBuilderShouldCreateRoleWithoutPermissions(t *testing.T) {
 
 	res := rbac.NewResource("tenant", uuid.New(), nil)
 
-	id, err := rbac.RoleBuilder(&testRepository{}).
+	id, err := rbac.RoleBuilder().WithRepo(&testRepository{}).
 		Name("admin").
 		BelongsTo(res).
 		Build(t.Context())
@@ -119,7 +119,7 @@ func TestBuilderShouldCreateRoleWithPermissions(t *testing.T) {
 	merchant1 := rbac.NewResource("retail", uuid.New(), nil)
 	merchant2 := rbac.NewResource("retail", uuid.New(), nil)
 
-	id, err := rbac.RoleBuilder(&testRepository{}).
+	id, err := rbac.RoleBuilder().WithRepo(&testRepository{}).
 		Name("admin").
 		BelongsTo(res).
 		On(res).Allow("tenant-mod").Allow("tenant-del").
@@ -142,7 +142,7 @@ func TestBuilderShouldCreateRoleWithRemovedPermissions(t *testing.T) {
 	merchant1 := rbac.NewResource("retail", uuid.New(), nil)
 	merchant2 := rbac.NewResource("retail", uuid.New(), nil)
 
-	id, err := rbac.RoleBuilder(&testRepository{}).
+	id, err := rbac.RoleBuilder().WithRepo(&testRepository{}).
 		Name("admin").
 		BelongsTo(res).
 		On(res).Allow("tenant-mod").Allow("tenant-del").
@@ -159,7 +159,7 @@ func TestBuilderShouldCreateRoleWithRemovedPermissions(t *testing.T) {
 	}
 }
 
-func TestBuilderSqlite3ShouldCreateRoleWithoutPermissions(t *testing.T) {
+func TestBuilderRepositorySqlite3ShouldCreateRoleWithoutPermissions(t *testing.T) {
 	t.Parallel()
 
 	repo, _ := newRepo(t)
@@ -171,7 +171,247 @@ func TestBuilderSqlite3ShouldCreateRoleWithoutPermissions(t *testing.T) {
 		expectedAccessesNum = 0
 	)
 
-	id, err := rbac.RoleBuilder(repo).
+	id, err := rbac.RoleBuilder().WithRepo(repo).
+		Name(expectedName).
+		BelongsTo(res).
+		Build(t.Context())
+	if err != nil {
+		t.Error("expected a nil error")
+	}
+
+	if id.String() == (uuid.UUID{}).String() {
+		t.Error("expected id to be not empty")
+	}
+
+	roles, err := repo.GetRoles(t.Context(), id)
+	if err != nil {
+		t.Fatalf("could not get inserted roles: %v", err)
+	}
+
+	if len(roles) != 1 {
+		t.Fatalf("expected only one role: got %v roles", len(roles))
+	}
+
+	got := roles[0]
+
+	if got.Name != expectedName {
+		t.Errorf("expected role name to be '%v': got '%v'", expectedName, got.Name)
+	}
+
+	if !got.On.Equal(res) {
+		t.Errorf("expected role resource to be '%v': got '%v'", res, got.On)
+	}
+
+	if len(got.Accesses) != expectedAccessesNum {
+		t.Errorf("expected to have %v accesses: got %v", expectedAccessesNum, len(got.Accesses))
+	}
+}
+
+func TestBuilderRepositorySqlite3ShouldCreateRoleWithPermissions(t *testing.T) {
+	t.Parallel()
+
+	repo, _ := newRepo(t)
+
+	res := rbac.NewResource("tenant", uuid.New(), nil)
+	merchant1 := rbac.NewResource("retail", uuid.New(), nil)
+	merchant2 := rbac.NewResource("retail", uuid.New(), nil)
+
+	const (
+		expectedName        = "admin"
+		expectedAccessesNum = 3
+	)
+
+	var (
+		expectedTenantPerms    = []rbac.Perm{"tenant-mod", "tenant-del", "user-add"}
+		expectedMerchant1Perms = []rbac.Perm{"item-read"}
+		expectedMerchant2Perms = []rbac.Perm{"item-read", "item-del", "item-add"}
+		expectedAcceses        = []rbac.Access{
+			{
+				On:    res,
+				Perms: expectedTenantPerms,
+			},
+			{
+				On:    merchant1,
+				Perms: expectedMerchant1Perms,
+			},
+			{
+				On:    merchant2,
+				Perms: expectedMerchant2Perms,
+			},
+		}
+	)
+
+	id, err := rbac.RoleBuilder().WithRepo(repo).
+		Name(expectedName).
+		BelongsTo(res).
+		On(res).Allow(expectedTenantPerms[0]).Allow(expectedTenantPerms[1:]...).
+		On(merchant1).Allow(expectedMerchant1Perms...).
+		On(merchant2).Allow(expectedMerchant2Perms...).
+		Build(t.Context())
+	if err != nil {
+		t.Error("expected a nil error")
+	}
+
+	if id.String() == (uuid.UUID{}).String() {
+		t.Error("expected id to be not empty")
+	}
+
+	roles, err := repo.GetRoles(t.Context(), id)
+	if err != nil {
+		t.Fatalf("could not get inserted roles: %v", err)
+	}
+
+	if len(roles) != 1 {
+		t.Fatalf("expected only one role: got %v roles", len(roles))
+	}
+
+	got := roles[0]
+
+	if got.Name != expectedName {
+		t.Errorf("expected role name to be '%v': got '%v'", expectedName, got.Name)
+	}
+
+	if !got.On.Equal(res) {
+		t.Errorf("expected role resource to be '%v': got '%v'", res, got.On)
+	}
+
+	if len(got.Accesses) != expectedAccessesNum {
+		t.Errorf("expected to have %v accesses: got %v", expectedAccessesNum, len(got.Accesses))
+	}
+
+	sortByPerms := func(a, b rbac.Access) int {
+		return cmp.Compare(joinPerms(a.Perms), joinPerms(b.Perms))
+	}
+
+	slices.SortFunc(got.Accesses, sortByPerms)
+	slices.SortFunc(expectedAcceses, sortByPerms)
+
+	for i, gotAccess := range got.Accesses {
+		expected := expectedAcceses[i]
+
+		if !gotAccess.On.Equal(expected.On) {
+			t.Errorf("expected access resource to be '%v': got '%v'", &expected.On, &gotAccess.On)
+		}
+
+		slices.Sort(gotAccess.Perms)
+		slices.Sort(expected.Perms)
+
+		if !slices.Equal(gotAccess.Perms, expected.Perms) {
+			t.Errorf("expected accesses to be '%v': got '%v'", expected.Perms, gotAccess.Perms)
+		}
+	}
+}
+
+func TestBuilderRepositorySqlite3ShouldCreateRoleWithRemovedPermissions(t *testing.T) {
+	t.Parallel()
+
+	repo, _ := newRepo(t)
+
+	res := rbac.NewResource("tenant", uuid.New(), nil)
+	merchant1 := rbac.NewResource("retail", uuid.New(), nil)
+	merchant2 := rbac.NewResource("retail", uuid.New(), nil)
+
+	const (
+		expectedName        = "admin"
+		expectedAccessesNum = 2
+	)
+
+	var (
+		expectedTenantPerms = []rbac.Perm{"tenant-mod", "tenant-del", "user-add"}
+		// expectedMerchant1Perms = []rbac.Perm{"item-read"}
+		expectedMerchant2Perms = []rbac.Perm{"item-read", "item-del", "item-add"}
+		expectedAcceses        = []rbac.Access{
+			{
+				On:    res,
+				Perms: expectedTenantPerms,
+			},
+			// Removed.
+			// {
+			// 	On: merchant1,
+			// 	Perms: expectedMerchant1Perms,
+			// },
+			{
+				On:    merchant2,
+				Perms: expectedMerchant2Perms,
+			},
+		}
+	)
+
+	id, err := rbac.RoleBuilder().WithRepo(repo).
+		Name("admin").
+		BelongsTo(res).
+		On(res).Allow(expectedTenantPerms[0]).Allow(expectedTenantPerms[1:]...).
+		On(merchant1).Allow("item-read").
+		On(merchant2).Allow(expectedMerchant2Perms...).
+		Remove(merchant1).
+		Build(t.Context())
+	if err != nil {
+		t.Error("expected a nil error")
+	}
+
+	if id.String() == (uuid.UUID{}).String() {
+		t.Error("expected id to be not empty")
+	}
+
+	roles, err := repo.GetRoles(t.Context(), id)
+	if err != nil {
+		t.Fatalf("could not get inserted roles: %v", err)
+	}
+
+	if len(roles) != 1 {
+		t.Fatalf("expected only one role: got %v roles", len(roles))
+	}
+
+	got := roles[0]
+
+	if got.Name != expectedName {
+		t.Errorf("expected role name to be '%v': got '%v'", expectedName, got.Name)
+	}
+
+	if !got.On.Equal(res) {
+		t.Errorf("expected role resource to be '%v': got '%v'", res, got.On)
+	}
+
+	if len(got.Accesses) != expectedAccessesNum {
+		t.Errorf("expected to have %v accesses: got %v", expectedAccessesNum, len(got.Accesses))
+	}
+
+	sortByPerms := func(a, b rbac.Access) int {
+		return cmp.Compare(joinPerms(a.Perms), joinPerms(b.Perms))
+	}
+
+	slices.SortFunc(got.Accesses, sortByPerms)
+	slices.SortFunc(expectedAcceses, sortByPerms)
+
+	for i, gotAccess := range got.Accesses {
+		expected := expectedAcceses[i]
+
+		if !gotAccess.On.Equal(expected.On) {
+			t.Errorf("expected access resource to be '%v': got '%v'", &expected.On, &gotAccess.On)
+		}
+
+		slices.Sort(gotAccess.Perms)
+		slices.Sort(expected.Perms)
+
+		if !slices.Equal(gotAccess.Perms, expected.Perms) {
+			t.Errorf("expected accesses to be '%v': got '%v'", expected.Perms, gotAccess.Perms)
+		}
+	}
+}
+
+func TestBuilderDBSqlite3ShouldCreateRoleWithoutPermissions(t *testing.T) {
+	t.Parallel()
+
+	repo, db := newRepo(t)
+
+	res := rbac.NewResource("tenant", uuid.New(), nil)
+
+	const (
+		expectedName        = "admin"
+		expectedAccessesNum = 0
+	)
+
+	id, err := rbac.RoleBuilder().WithDB(db).
 		Name(expectedName).
 		BelongsTo(res).
 		Build(t.Context())
@@ -210,7 +450,7 @@ func TestBuilderSqlite3ShouldCreateRoleWithoutPermissions(t *testing.T) {
 func TestBuilderSqlite3ShouldCreateRoleWithPermissions(t *testing.T) {
 	t.Parallel()
 
-	repo, _ := newRepo(t)
+	repo, db := newRepo(t)
 
 	res := rbac.NewResource("tenant", uuid.New(), nil)
 	merchant1 := rbac.NewResource("retail", uuid.New(), nil)
@@ -241,7 +481,7 @@ func TestBuilderSqlite3ShouldCreateRoleWithPermissions(t *testing.T) {
 		}
 	)
 
-	id, err := rbac.RoleBuilder(repo).
+	id, err := rbac.RoleBuilder().WithDB(db).
 		Name(expectedName).
 		BelongsTo(res).
 		On(res).Allow(expectedTenantPerms[0]).Allow(expectedTenantPerms[1:]...).
@@ -305,7 +545,7 @@ func TestBuilderSqlite3ShouldCreateRoleWithPermissions(t *testing.T) {
 func TestBuilderSqlite3ShouldCreateRoleWithRemovedPermissions(t *testing.T) {
 	t.Parallel()
 
-	repo, _ := newRepo(t)
+	repo, db := newRepo(t)
 
 	res := rbac.NewResource("tenant", uuid.New(), nil)
 	merchant1 := rbac.NewResource("retail", uuid.New(), nil)
@@ -337,7 +577,7 @@ func TestBuilderSqlite3ShouldCreateRoleWithRemovedPermissions(t *testing.T) {
 		}
 	)
 
-	id, err := rbac.RoleBuilder(repo).
+	id, err := rbac.RoleBuilder().WithDB(db).
 		Name("admin").
 		BelongsTo(res).
 		On(res).Allow(expectedTenantPerms[0]).Allow(expectedTenantPerms[1:]...).
