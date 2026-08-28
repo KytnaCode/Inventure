@@ -33,6 +33,22 @@ func (m *RoleModel) TableName() string {
 	return "roles"
 }
 
+// ToDomain converts a [RoleModel] into a [Role].
+func (m *RoleModel) ToDomain() *Role {
+	accesses := make([]Access, 0, len(m.Accesses))
+
+	for _, accessModel := range m.Accesses {
+		accesses = append(accesses, *accessModel.ToDomain())
+	}
+
+	return &Role{
+		ID:       m.ID,
+		Name:     m.Name,
+		Accesses: accesses,
+		On:       NewResource(m.ResourceType, m.ResourceID, nil),
+	}
+}
+
 // AccessModel is the database representation of a permission grant.
 type AccessModel struct {
 	gorm.Model
@@ -56,6 +72,15 @@ type AccessModel struct {
 // TableName returns the name for accesses table. Implements [gorm/schema.Tabler].
 func (m *AccessModel) TableName() string {
 	return "accesses"
+}
+
+// ToDomain converts an [AccessModel] into an [Access].
+func (m *AccessModel) ToDomain() *Access {
+	return &Access{
+		ID:    m.ID,
+		Perms: sliceToPerm(m.Perms),
+		On:    NewResource(m.ResourceType, m.ResourceID, nil),
+	}
 }
 
 func convertList[S, T ~string](s []S) []T {
