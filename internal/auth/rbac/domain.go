@@ -39,8 +39,13 @@ type Access struct {
 
 // Resource is a resource that can contain roles and be subject of permission grants.
 type Resource struct {
-	// Parent is the resource parent, nil for a root resource.
+	// Parent is the resource parent, for interpretation of nil value see the comment on ParentLoaded.
 	Parent *Resource
+
+	// ParentLoaded indicates how a nil Parent field should be interpreted, if true, then it means
+	// this resource is a root resource, on false, means that parent is unknown, this resource
+	// may or may not have a parent.
+	ParentLoaded bool
 
 	// Typ is the resource type.
 	Typ string
@@ -52,11 +57,18 @@ type Resource struct {
 // NewResource creates a new [Resource]. If parent is nil the resource will be interpreted as a
 // root resource.
 func NewResource(typ string, id uuid.UUID, parent *Resource) Resource {
-	return Resource{
-		Typ:    typ,
-		ID:     id,
-		Parent: parent,
+	res := Resource{
+		Typ:          typ,
+		ID:           id,
+		Parent:       parent,
+		ParentLoaded: false,
 	}
+
+	if parent != nil {
+		res.ParentLoaded = true
+	}
+
+	return res
 }
 
 // String returns a string representation of the resource.

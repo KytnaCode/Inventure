@@ -12,6 +12,9 @@ import (
 	"gorm.io/gorm"
 )
 
+// Ensure [Repository] implements [roleGetter].
+var _ roleGetter = &Repository{}
+
 // RoleData contains necessary data to create a new role with [Repository].
 type RoleData struct {
 	// Name is role's name.
@@ -75,6 +78,33 @@ func (r *Repository) CreateRole(
 	}
 
 	return newID, nil
+}
+
+// GetRoles gets a list of roles by theirs IDs, returned roles may, and possibly will not match
+// IDs order. Non-existing role IDs will be dropped without error, so, returned roles slice length
+// will be less or equal to the number of IDs passed.
+func (r *Repository) GetRoles(ctx context.Context, ids ...uuid.UUID) ([]Role, error) {
+	var models []RoleModel
+
+	err := r.db.WithContext(ctx).
+		Where("id IN ?", ids).
+		Preload("Accesses").
+		Find(&models).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return []Role{}, nil
+	}
+
+	if err != nil {
+		return nil, fmt.Errorf("could not get roles: %w", err)
+	}
+
+	roles := make([]Role, 0, len(models))
+
+	for _, m := range models {
+		roles = append(roles, *m.ToDomain())
+	}
+
+	return roles, nil
 }
 
 // getOrCreateRole get a role's ID if already exists, if not exists it will create it.
