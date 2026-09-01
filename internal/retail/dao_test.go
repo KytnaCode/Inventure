@@ -8,8 +8,7 @@ import (
 
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
-	"github.com/kytnacode/inventure/internal/entity/item"
-	"github.com/kytnacode/inventure/internal/entity/retail"
+	"github.com/kytnacode/inventure/internal/retail"
 	"github.com/kytnacode/inventure/validation"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -21,7 +20,7 @@ func newDAO(t *testing.T) (*retail.DAO, *gorm.DB) {
 		t.Fatalf("could not open test database instance: %v", err)
 	}
 
-	err = db.AutoMigrate(&retail.Model{}, &retail.PlaceModel{}, &item.Model{})
+	err = db.AutoMigrate(&retail.RetailModel{}, &retail.PlaceModel{}, &retail.ItemModel{})
 	if err != nil {
 		t.Fatalf("could not run test database migrations: %v", err)
 	}
@@ -34,7 +33,7 @@ func TestDAO_CreateRetailShouldRequireRetailName(t *testing.T) {
 
 	dao, db := newDAO(t)
 
-	data := retail.Data{
+	data := retail.RetailData{
 		// Name:     "real retail",
 		TenantID: uuid.New(),
 	}
@@ -58,7 +57,7 @@ func TestDAO_CreateRetailShouldCreateRetail(t *testing.T) {
 
 	dao, db := newDAO(t)
 
-	data := retail.Data{
+	data := retail.RetailData{
 		Name:     "real retail",
 		TenantID: uuid.New(),
 	}
@@ -68,7 +67,7 @@ func TestDAO_CreateRetailShouldCreateRetail(t *testing.T) {
 		t.Fatalf("expected a nil error: %v", err)
 	}
 
-	var got retail.Model
+	var got retail.RetailModel
 
 	err = db.WithContext(t.Context()).Where("id = ?", id).Take(&got).Error
 	if err != nil {
@@ -89,7 +88,7 @@ func TestDAO_CreateRetailListShouldCreateRetails(t *testing.T) {
 
 	dao, db := newDAO(t)
 
-	data := []retail.Data{
+	data := []retail.RetailData{
 		{
 			Name:     "real retail",
 			TenantID: uuid.New(),
@@ -105,18 +104,18 @@ func TestDAO_CreateRetailListShouldCreateRetails(t *testing.T) {
 		t.Fatalf("expected a nil error: %v", err)
 	}
 
-	var gotRetails []retail.Model
+	var gotRetails []retail.RetailModel
 
 	err = db.WithContext(t.Context()).Where("id IN ?", ids).Find(&gotRetails).Error
 	if err != nil {
 		t.Fatalf("could not get inserted retail: %v", err)
 	}
 
-	slices.SortFunc(gotRetails, func(a, b retail.Model) int {
+	slices.SortFunc(gotRetails, func(a, b retail.RetailModel) int {
 		return cmp.Compare(a.Name, b.Name)
 	})
 
-	slices.SortFunc(data, func(a, b retail.Data) int {
+	slices.SortFunc(data, func(a, b retail.RetailData) int {
 		return cmp.Compare(a.Name, b.Name)
 	})
 
@@ -142,7 +141,7 @@ func TestDAO_CreatePlaceShouldCreatePlace(t *testing.T) {
 
 	dao, db := newDAO(t)
 
-	retailData := retail.Data{
+	retailData := retail.RetailData{
 		Name: "abc",
 	}
 
@@ -153,7 +152,7 @@ func TestDAO_CreatePlaceShouldCreatePlace(t *testing.T) {
 
 	data := retail.PlaceData{
 		Name: "place 1",
-		Items: []item.Data{
+		Items: []retail.ItemData{
 			{
 				Name:  "hello",
 				Desc:  "world",
@@ -163,7 +162,7 @@ func TestDAO_CreatePlaceShouldCreatePlace(t *testing.T) {
 		Children: []retail.PlaceData{
 			{
 				Name: "place 2",
-				Items: []item.Data{
+				Items: []retail.ItemData{
 					{
 						Name:  "item 2",
 						Stock: 10,

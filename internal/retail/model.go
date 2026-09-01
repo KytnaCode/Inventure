@@ -2,16 +2,72 @@ package retail
 
 import (
 	"cmp"
+	"fmt"
 	"slices"
 
+	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
-	"github.com/kytnacode/inventure/internal/entity/item"
-	"github.com/kytnacode/inventure/internal/entity/retail/placepath"
-	"github.com/kytnacode/inventure/internal/entity/user"
+	"github.com/kytnacode/inventure/internal/retail/placepath"
+	"github.com/kytnacode/inventure/internal/user"
+	"gorm.io/datatypes"
+	"gorm.io/gorm"
 )
 
-// Model is the database representation of a [Retail].
-type Model struct {
+type ItemModel struct {
+	// ID is item's unique ID.
+	ID uuid.UUID `gorm:"primaryKey"`
+
+	// Name is item's name.
+	Name string
+
+	// Desc is item's description.
+	Desc string
+
+	// Stock is item's available stock.
+	Stock int
+
+	// Attrs a per-item custom attributes.
+	Attrs datatypes.JSONMap
+
+	// PlaceID is the ID of the place the item is residing on.
+	PlaceID uuid.UUID
+}
+
+// TableName returns item's table name. Implements [gorm/schema.Tabler].
+func (m *ItemModel) TableName() string {
+	return "items"
+}
+
+// NewModel validates data and returns a new [ItemModel].
+func NewModel(v *validator.Validate, data *ItemData) (*ItemModel, error) {
+	if err := v.Struct(data); err != nil {
+		return nil, fmt.Errorf("invalid item data: %w", err)
+	}
+
+	m := &ItemModel{
+		ID:    uuid.New(),
+		Name:  data.Name,
+		Desc:  data.Desc,
+		Stock: data.Stock,
+		Attrs: data.Attrs,
+	}
+
+	return m, nil
+}
+
+// ToDomain converts an [ItemModel] into an [Item].
+func (m *ItemModel) ToDomain() *Item {
+	return &Item{
+		ID:      m.ID.String(),
+		Name:    m.Name,
+		Desc:    m.Desc,
+		Stock:   m.Stock,
+		Attrs:   m.Attrs,
+		PlaceID: m.PlaceID.String(),
+	}
+}
+
+type RetailModel struct {
 	// ID is the retail's unique ID.
 	ID uuid.UUID `gorm:"primaryKey"`
 
@@ -29,7 +85,7 @@ type Model struct {
 }
 
 // TableName returns retail's table name. Implements [gorm/schema.Tabler].
-func (m *Model) TableName() string {
+func (m *RetailModel) TableName() string {
 	return "retails"
 }
 
@@ -45,7 +101,7 @@ type PlaceModel struct {
 	RetailID uuid.UUID `gorm:"uniqueIndex:idx_name"`
 
 	// Items are the items that reside directly on this place.
-	Items []item.Model `gorm:"foreignKey:PlaceID"`
+	Items []ItemModel `gorm:"foreignKey:PlaceID"`
 }
 
 // TableName returns place's table name. Implements [gorm/schema.Tabler].
@@ -126,4 +182,25 @@ func placeFromModel(place, parent *Place, currPath string, places []PlaceModel, 
 	}
 
 	return i
+}
+
+type TenantModel struct {
+	gorm.Model
+
+	// ID is tenant's unique ID.
+	ID uuid.UUID
+
+	// Name is tenant's display name.
+	Name string
+
+	// Users are tenant-scoped users.
+	Users []user.Model `gorm:"many2many:tenant_users;"`
+
+	// Retails are tenant-owned retails.
+	Retails []RetailModel `gorm:"foreignKey:TenantID"`
+}
+
+// TableName returns tenant's table name. Implements [gorm/schema.Tabler].
+func (m *TenantModel) TableName() string {
+	return "tenants"
 }

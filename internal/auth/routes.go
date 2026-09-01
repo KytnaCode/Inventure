@@ -13,7 +13,7 @@ import (
 	"github.com/go-playground/validator/v10"
 	"github.com/kytnacode/inventure/api"
 	"github.com/kytnacode/inventure/api/csrf"
-	"github.com/kytnacode/inventure/internal/entity/user"
+	"github.com/kytnacode/inventure/internal/user"
 	"github.com/kytnacode/inventure/internal/web"
 	"github.com/kytnacode/inventure/logging"
 	"github.com/kytnacode/inventure/passhash"
