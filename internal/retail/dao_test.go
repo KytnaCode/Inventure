@@ -3,14 +3,12 @@ package retail_test
 import (
 	"cmp"
 	"errors"
-	"maps"
 	"slices"
 	"testing"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
-	"github.com/kytnacode/inventure/internal/entity/item"
-	"github.com/kytnacode/inventure/internal/entity/retail"
+	"github.com/kytnacode/inventure/internal/retail"
 	"github.com/kytnacode/inventure/validation"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -22,7 +20,7 @@ func newDAO(t *testing.T) (*retail.DAO, *gorm.DB) {
 		t.Fatalf("could not open test database instance: %v", err)
 	}
 
-	err = db.AutoMigrate(&retail.Model{}, &retail.PlaceModel{}, &item.Model{})
+	err = db.AutoMigrate(&retail.RetailModel{}, &retail.PlaceModel{}, &retail.ItemModel{})
 	if err != nil {
 		t.Fatalf("could not run test database migrations: %v", err)
 	}
@@ -30,80 +28,12 @@ func newDAO(t *testing.T) (*retail.DAO, *gorm.DB) {
 	return retail.NewDAO(validation.New()), db
 }
 
-func comparePlace(t *testing.T, data *retail.PlaceData, domain *retail.Place) {
-	if data.Name != domain.Name {
-		t.Errorf("expected name to be '%v': got '%v'", data.Name, domain.Name)
-	}
-
-	if len(data.Items) != len(domain.Items) {
-		t.Fatalf("different items length: expeceted '%v' got '%v'", len(data.Items), len(domain.Items))
-	}
-
-	itemDataSlice := slices.SortedFunc(
-		slices.Values(data.Items),
-		func(a, b item.Data) int {
-			return cmp.Compare(a.Name, b.Name)
-		},
-	)
-
-	itemModelSlice := slices.SortedFunc(
-		slices.Values(domain.Items),
-		func(a, b item.Item) int {
-			return cmp.Compare(a.Name, b.Name)
-		},
-	)
-
-	for i, itemData := range itemDataSlice {
-		itemModel := itemModelSlice[i]
-
-		if itemData.Name != itemModel.Name {
-			t.Errorf("expected item name to be '%v': got '%v'", itemData.Name, itemModel.Name)
-		}
-
-		if itemData.Desc != itemModel.Desc {
-			t.Errorf("expected item desc to be '%v': got '%v'", itemData.Desc, itemModel.Desc)
-		}
-
-		if itemData.Stock != itemModel.Stock {
-			t.Errorf("expected item stock to be '%v': got '%v'", itemData.Stock, itemModel.Stock)
-		}
-
-		if !maps.Equal(itemData.Attrs, itemModel.Attrs) {
-			t.Errorf("expected item attrs to be '%v': got '%v'", itemData.Attrs, itemModel.Attrs)
-		}
-	}
-
-	if len(data.Children) != len(domain.Children) {
-		t.Fatalf("expected '%v' children: got '%v'", len(data.Children), len(domain.Children))
-	}
-
-	dataChildren := slices.SortedFunc(
-		slices.Values(data.Children),
-		func(a, b retail.PlaceData) int {
-			return cmp.Compare(a.Name, b.Name)
-		},
-	)
-
-	modelChildren := slices.SortedFunc(
-		slices.Values(domain.Children),
-		func(a, b retail.Place) int {
-			return cmp.Compare(a.Name, b.Name)
-		},
-	)
-
-	for i, child := range dataChildren {
-		modelChild := modelChildren[i]
-
-		comparePlace(t, &child, &modelChild)
-	}
-}
-
 func TestDAO_CreateRetailShouldRequireRetailName(t *testing.T) {
 	t.Parallel()
 
 	dao, db := newDAO(t)
 
-	data := retail.Data{
+	data := retail.RetailData{
 		// Name:     "real retail",
 		TenantID: uuid.New(),
 	}
@@ -127,7 +57,7 @@ func TestDAO_CreateRetailShouldCreateRetail(t *testing.T) {
 
 	dao, db := newDAO(t)
 
-	data := retail.Data{
+	data := retail.RetailData{
 		Name:     "real retail",
 		TenantID: uuid.New(),
 	}
@@ -137,7 +67,7 @@ func TestDAO_CreateRetailShouldCreateRetail(t *testing.T) {
 		t.Fatalf("expected a nil error: %v", err)
 	}
 
-	var got retail.Model
+	var got retail.RetailModel
 
 	err = db.WithContext(t.Context()).Where("id = ?", id).Take(&got).Error
 	if err != nil {
@@ -158,7 +88,7 @@ func TestDAO_CreateRetailListShouldCreateRetails(t *testing.T) {
 
 	dao, db := newDAO(t)
 
-	data := []retail.Data{
+	data := []retail.RetailData{
 		{
 			Name:     "real retail",
 			TenantID: uuid.New(),
@@ -174,18 +104,18 @@ func TestDAO_CreateRetailListShouldCreateRetails(t *testing.T) {
 		t.Fatalf("expected a nil error: %v", err)
 	}
 
-	var gotRetails []retail.Model
+	var gotRetails []retail.RetailModel
 
 	err = db.WithContext(t.Context()).Where("id IN ?", ids).Find(&gotRetails).Error
 	if err != nil {
 		t.Fatalf("could not get inserted retail: %v", err)
 	}
 
-	slices.SortFunc(gotRetails, func(a, b retail.Model) int {
+	slices.SortFunc(gotRetails, func(a, b retail.RetailModel) int {
 		return cmp.Compare(a.Name, b.Name)
 	})
 
-	slices.SortFunc(data, func(a, b retail.Data) int {
+	slices.SortFunc(data, func(a, b retail.RetailData) int {
 		return cmp.Compare(a.Name, b.Name)
 	})
 
@@ -211,7 +141,7 @@ func TestDAO_CreatePlaceShouldCreatePlace(t *testing.T) {
 
 	dao, db := newDAO(t)
 
-	retailData := retail.Data{
+	retailData := retail.RetailData{
 		Name: "abc",
 	}
 
@@ -222,7 +152,7 @@ func TestDAO_CreatePlaceShouldCreatePlace(t *testing.T) {
 
 	data := retail.PlaceData{
 		Name: "place 1",
-		Items: []item.Data{
+		Items: []retail.ItemData{
 			{
 				Name:  "hello",
 				Desc:  "world",
@@ -232,7 +162,7 @@ func TestDAO_CreatePlaceShouldCreatePlace(t *testing.T) {
 		Children: []retail.PlaceData{
 			{
 				Name: "place 2",
-				Items: []item.Data{
+				Items: []retail.ItemData{
 					{
 						Name:  "item 2",
 						Stock: 10,

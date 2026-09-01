@@ -1,4 +1,4 @@
-package tenant_test
+package retail_test
 
 import (
 	"context"
@@ -6,9 +6,9 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/kytnacode/inventure/internal/entity"
-	"github.com/kytnacode/inventure/internal/entity/tenant"
-	"github.com/kytnacode/inventure/internal/entity/user"
+	"github.com/kytnacode/inventure/internal/auth/rbac"
+	"github.com/kytnacode/inventure/internal/retail"
+	"github.com/kytnacode/inventure/internal/user"
 )
 
 type testTenantRepo struct {
@@ -18,8 +18,8 @@ type testTenantRepo struct {
 
 func (r *testTenantRepo) CreateFullTenant(
 	_ context.Context,
-	_ *tenant.Data,
-	_ []tenant.RetailData,
+	_ *retail.TenantData,
+	_ []retail.Data,
 	_ []uuid.UUID,
 ) (id uuid.UUID, err error) {
 	if r.err != nil {
@@ -29,8 +29,8 @@ func (r *testTenantRepo) CreateFullTenant(
 	return r.tenantID, nil
 }
 
-func newService(repo *testTenantRepo) *tenant.Service {
-	return tenant.NewService(repo)
+func newService(repo *testTenantRepo) *retail.Service {
+	return retail.NewService(repo)
 }
 
 func TestService_CreateDefaultTenantShouldCreateTenant(t *testing.T) {
@@ -46,7 +46,7 @@ func TestService_CreateDefaultTenantShouldCreateTenant(t *testing.T) {
 		ID:    uuid.New(),
 		Name:  "Amity Blight",
 		Email: "amity.blight@gmail.com",
-		On:    entity.NewReference("tenant", uuid.New(), nil),
+		On:    rbac.NewResource("tenant", uuid.New(), nil),
 	}
 
 	got, err := service.CreateDefaultTenant(t.Context(), creator)
@@ -72,7 +72,7 @@ func TestService_CreateDefaultTenantShouldWrapRepositoryError(t *testing.T) {
 		ID:    uuid.New(),
 		Name:  "Amity Blight",
 		Email: "amity.blight@gmail.com",
-		On:    entity.NewReference("tenant", uuid.New(), nil),
+		On:    rbac.NewResource("tenant", uuid.New(), nil),
 	}
 
 	got, err := service.CreateDefaultTenant(t.Context(), creator)

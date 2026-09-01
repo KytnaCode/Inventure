@@ -1,4 +1,4 @@
-package tenant
+package retail
 
 import (
 	"context"
@@ -6,31 +6,61 @@ import (
 
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
-	"github.com/kytnacode/inventure/internal/entity/retail"
-	"github.com/kytnacode/inventure/internal/entity/user"
+	"github.com/kytnacode/inventure/internal/user"
 	"gorm.io/gorm"
 )
 
-// Data is the necessary data to create a tenant with [Repository].
+// TenantData is the necessary data to create a tenant.
+type TenantData struct {
+	Name string
+}
+
+// Data is the necessary data to create a retail.
 type Data struct {
-	Name string
-}
-
-// RetailData is the necessary data to create retail with [Repository].
-type RetailData struct {
+	// Name is retail's display name.
 	Name string
 
-	Storage *retail.PlaceData
+	// TenantID is the tenant the retail belongs, required. MUST exists.
+	TenantID uuid.UUID
+
+	// Storage is the data for retail's root storage. If missing a default storage will be created.
+	Storage *PlaceData
 }
 
-// Ensure [Repository] implements [tenantRepository].
+// PlaceData is the necessary data to create a place.
+type PlaceData struct {
+	// Name is place's display name.
+	Name string
+
+	// Children are other places contained in this one.
+	Children []PlaceData
+
+	// Items are items directly contained in this place.
+	Items []ItemData
+}
+
+// ItemData is the necessary data to create an item.
+type ItemData struct {
+	// Name is item's name.
+	Name string `validate:"required,max=80,resourcename"`
+
+	// Desc is item's description.
+	Desc string `validate:"max=65565,max=0|resourcename"`
+
+	// Stock is item's stock, must be positive.
+	Stock int `validate:"gte=0"`
+
+	// Attrs are optional per-item custom attributes.
+	Attrs map[string]any `validate:"dive,keys,required,min=1,max=80,endkeys"`
+}
+
 var _ tenantRepository = &Repository{}
 
 // Repository handles high level persistence logic for tenants.
 type Repository struct {
 	db        *gorm.DB
 	userDAO   *user.DAO
-	retailDAO *retail.DAO
+	retailDAO *DAO
 }
 
 // NewRepository creates a new [Repository].
@@ -38,7 +68,7 @@ func NewRepository(db *gorm.DB, v *validator.Validate) *Repository {
 	return &Repository{
 		db:        db,
 		userDAO:   user.NewDAO(),
-		retailDAO: retail.NewDAO(v),
+		retailDAO: NewDAO(v),
 	}
 }
 
@@ -46,8 +76,8 @@ func NewRepository(db *gorm.DB, v *validator.Validate) *Repository {
 // ids as members of the tenant, it drops non-existing user ids.
 func (r *Repository) CreateFullTenant(
 	ctx context.Context,
-	data *Data,
-	retails []RetailData,
+	data *TenantData,
+	retails []Data,
 	userIDs []uuid.UUID,
 ) (id uuid.UUID, err error) {
 	users := make([]user.Model, 0, len(userIDs))
@@ -68,7 +98,7 @@ func (r *Repository) CreateFullTenant(
 	err = r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		tenantID := uuid.New()
 
-		var retailModels []retail.Model
+		var retailModels []RetailModel
 
 		if len(retails) != 0 {
 			ids, err := r.retailDAO.CreateRetailsList(tx, dataFromRetailData(retails, tenantID))
@@ -76,16 +106,16 @@ func (r *Repository) CreateFullTenant(
 				return err
 			}
 
-			retailModels = make([]retail.Model, 0, len(ids))
+			retailModels = make([]RetailModel, 0, len(ids))
 
 			for _, id := range ids {
-				retailModels = append(retailModels, retail.Model{
+				retailModels = append(retailModels, RetailModel{
 					ID: id,
 				})
 			}
 		}
 
-		m := &Model{
+		m := &TenantModel{
 			ID:      tenantID,
 			Name:    data.Name,
 			Users:   users,
@@ -108,11 +138,11 @@ func (r *Repository) CreateFullTenant(
 	return id, nil
 }
 
-func dataFromRetailData(retailData []RetailData, tenantID uuid.UUID) []retail.Data {
-	data := make([]retail.Data, 0, len(retailData))
+func dataFromRetailData(retailData []Data, tenantID uuid.UUID) []Data {
+	data := make([]Data, 0, len(retailData))
 
 	for _, d := range retailData {
-		data = append(data, retail.Data{
+		data = append(data, Data{
 			Name:     d.Name,
 			Storage:  d.Storage,
 			TenantID: tenantID,
@@ -120,4 +150,14 @@ func dataFromRetailData(retailData []RetailData, tenantID uuid.UUID) []retail.Da
 	}
 
 	return data
+}
+
+func itemModelToDomain(models []ItemModel) []Item {
+	items := make([]Item, 0, len(models))
+
+	for _, it := range models {
+		items = append(items, *it.ToDomain())
+	}
+
+	return items
 }

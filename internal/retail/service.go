@@ -1,12 +1,11 @@
-package tenant
+package retail
 
 import (
 	"context"
 	"fmt"
 
 	"github.com/google/uuid"
-	"github.com/kytnacode/inventure/internal/entity/retail"
-	"github.com/kytnacode/inventure/internal/entity/user"
+	"github.com/kytnacode/inventure/internal/user"
 )
 
 // tenantRepository abstracts away tenant's persistence layer.
@@ -15,8 +14,8 @@ import (
 type tenantRepository interface {
 	CreateFullTenant(
 		ctx context.Context,
-		data *Data,
-		retails []RetailData,
+		data *TenantData,
+		retails []Data,
 		userIDs []uuid.UUID,
 	) (id uuid.UUID, err error)
 }
@@ -40,14 +39,14 @@ func (s *Service) CreateDefaultTenant(
 	ctx context.Context,
 	creator user.User,
 ) (id uuid.UUID, err error) {
-	data := Data{
+	data := TenantData{
 		Name: fmt.Sprintf("%v's Company", creator.Name),
 	}
 
-	retails := []RetailData{
+	retails := []Data{
 		{
 			Name: "My Retail",
-			Storage: &retail.PlaceData{
+			Storage: &PlaceData{
 				Name: "Storage",
 			},
 		},

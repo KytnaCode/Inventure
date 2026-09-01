@@ -4,7 +4,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/kytnacode/inventure/internal/entity/retail/placepath"
+	"github.com/kytnacode/inventure/internal/retail/placepath"
 )
 
 func TestTrimLeftPath(t *testing.T) {

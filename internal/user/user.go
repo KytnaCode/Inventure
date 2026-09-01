@@ -2,7 +2,7 @@ package user
 
 import (
 	"github.com/google/uuid"
-	"github.com/kytnacode/inventure/internal/entity"
+	"github.com/kytnacode/inventure/internal/auth/rbac"
 )
 
 // User is the domain model for a user.
@@ -17,5 +17,5 @@ type User struct {
 	Email string `validate:"required,email"`
 
 	// On is the resource the user is scoped on.
-	On entity.Reference
+	On rbac.Resource
 }

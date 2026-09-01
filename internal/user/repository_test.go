@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/kytnacode/inventure/internal/entity/user"
+	"github.com/kytnacode/inventure/internal/user"
 	"github.com/kytnacode/inventure/validation"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"

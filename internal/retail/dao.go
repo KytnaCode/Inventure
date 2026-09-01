@@ -5,8 +5,7 @@ import (
 
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
-	"github.com/kytnacode/inventure/internal/entity/item"
-	"github.com/kytnacode/inventure/internal/entity/retail/placepath"
+	"github.com/kytnacode/inventure/internal/retail/placepath"
 	"gorm.io/gorm"
 )
 
@@ -23,11 +22,11 @@ func NewDAO(v *validator.Validate) *DAO {
 }
 
 // CreateRetailsList creates a list of retails and returns its IDs.
-func (d *DAO) CreateRetailsList(tx *gorm.DB, data []Data) ([]uuid.UUID, error) {
-	models := make([]Model, 0, len(data))
+func (d *DAO) CreateRetailsList(tx *gorm.DB, data []RetailData) ([]uuid.UUID, error) {
+	models := make([]RetailModel, 0, len(data))
 
 	for _, retailData := range data {
-		m := Model{
+		m := RetailModel{
 			ID:       uuid.New(),
 			Name:     retailData.Name,
 			TenantID: retailData.TenantID,
@@ -75,8 +74,8 @@ func (d *DAO) CreateRetailsList(tx *gorm.DB, data []Data) ([]uuid.UUID, error) {
 }
 
 // CreateRetail creates a new retail and returns its ID.
-func (d *DAO) CreateRetail(tx *gorm.DB, data *Data) (uuid.UUID, error) {
-	ids, err := d.CreateRetailsList(tx, []Data{*data})
+func (d *DAO) CreateRetail(tx *gorm.DB, data *RetailData) (uuid.UUID, error) {
+	ids, err := d.CreateRetailsList(tx, []RetailData{*data})
 	if err != nil {
 		return uuid.UUID{}, err
 	}
@@ -106,10 +105,10 @@ func (d *DAO) CreatePlace(
 		return fmt.Errorf("could not create place: %w", err)
 	}
 
-	items := make([]*item.Model, 0, len(data.Items))
+	items := make([]*ItemModel, 0, len(data.Items))
 
 	for _, itemData := range data.Items {
-		itemModel, err := item.NewModel(d.v, &itemData)
+		itemModel, err := NewModel(d.v, &itemData)
 		if err != nil {
 			return err
 		}

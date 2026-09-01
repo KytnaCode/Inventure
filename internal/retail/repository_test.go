@@ -1,4 +1,4 @@
-package tenant_test
+package retail_test
 
 import (
 	"cmp"
@@ -7,16 +7,14 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/kytnacode/inventure/internal/entity/item"
-	"github.com/kytnacode/inventure/internal/entity/retail"
-	"github.com/kytnacode/inventure/internal/entity/tenant"
-	"github.com/kytnacode/inventure/internal/entity/user"
+	"github.com/kytnacode/inventure/internal/retail"
+	"github.com/kytnacode/inventure/internal/user"
 	"github.com/kytnacode/inventure/validation"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
-func newRepo(t *testing.T) (*tenant.Repository, *gorm.DB) {
+func newRepo(t *testing.T) (*retail.Repository, *gorm.DB) {
 	t.Helper()
 
 	db, err := gorm.Open(sqlite.Open(":memory:"))
@@ -25,17 +23,17 @@ func newRepo(t *testing.T) (*tenant.Repository, *gorm.DB) {
 	}
 
 	err = db.AutoMigrate(
-		tenant.Model{},
+		retail.TenantModel{},
 		user.Model{},
-		retail.Model{},
+		retail.RetailModel{},
 		retail.PlaceModel{},
-		item.Model{},
+		retail.ItemModel{},
 	)
 	if err != nil {
 		t.Fatalf("could not run migrations on test database: %v", err)
 	}
 
-	repo := tenant.NewRepository(db, validation.New())
+	repo := retail.NewRepository(db, validation.New())
 
 	return repo, db
 }
@@ -81,7 +79,7 @@ func compareUsers(t *testing.T, got, existingUsers []user.Model) {
 	}
 }
 
-func compareRetails(t *testing.T, got []retail.Model, expected []tenant.RetailData) {
+func compareRetails(t *testing.T, got []retail.RetailModel, expected []retail.Data) {
 	t.Helper()
 
 	if len(got) != len(expected) {
@@ -92,11 +90,11 @@ func compareRetails(t *testing.T, got []retail.Model, expected []tenant.RetailDa
 		)
 	}
 
-	slices.SortFunc(got, func(a, b retail.Model) int {
+	slices.SortFunc(got, func(a, b retail.RetailModel) int {
 		return cmp.Compare(a.Name, b.Name)
 	})
 
-	slices.SortFunc(expected, func(a, b tenant.RetailData) int {
+	slices.SortFunc(expected, func(a, b retail.Data) int {
 		return cmp.Compare(a.Name, b.Name)
 	})
 
@@ -120,14 +118,14 @@ func comparePlace(t *testing.T, data *retail.PlaceData, domain *retail.Place) {
 
 	itemDataSlice := slices.SortedFunc(
 		slices.Values(data.Items),
-		func(a, b item.Data) int {
+		func(a, b retail.ItemData) int {
 			return cmp.Compare(a.Name, b.Name)
 		},
 	)
 
 	itemModelSlice := slices.SortedFunc(
 		slices.Values(domain.Items),
-		func(a, b item.Item) int {
+		func(a, b retail.Item) int {
 			return cmp.Compare(a.Name, b.Name)
 		},
 	)
@@ -182,16 +180,16 @@ func TestRepository_CreateFullTenantShouldCreateAnEmptyTenant(t *testing.T) {
 
 	repo, db := newRepo(t)
 
-	data := &tenant.Data{
+	data := retail.TenantData{
 		Name: "tenant name",
 	}
 
-	id, err := repo.CreateFullTenant(t.Context(), data, nil, nil)
+	id, err := repo.CreateFullTenant(t.Context(), &data, nil, nil)
 	if err != nil {
 		t.Fatalf("expected a nil error: %v", err)
 	}
 
-	var got tenant.Model
+	var got retail.TenantModel
 
 	err = db.WithContext(t.Context()).
 		Where("id = ?", id).
@@ -206,7 +204,7 @@ func TestRepository_CreateFullTenantShouldCreateAnEmptyTenant(t *testing.T) {
 		t.Errorf("expected tenant's name to be '%v': got '%v'", data.Name, got.Name)
 	}
 
-	compareRetails(t, got.Retails, []tenant.RetailData{})
+	compareRetails(t, got.Retails, []retail.Data{})
 
 	compareUsers(t, got.Users, []user.Model{})
 }
@@ -216,7 +214,7 @@ func TestRepository_CreateFullTenantShouldCreateAnTenantWithoutNotExistingUsers(
 
 	repo, db := newRepo(t)
 
-	data := &tenant.Data{
+	data := &retail.TenantData{
 		Name: "tenant name",
 	}
 
@@ -225,7 +223,7 @@ func TestRepository_CreateFullTenantShouldCreateAnTenantWithoutNotExistingUsers(
 		t.Fatalf("expected a nil error: %v", err)
 	}
 
-	var got tenant.Model
+	var got retail.TenantModel
 
 	err = db.WithContext(t.Context()).
 		Where("id = ?", id).
@@ -240,7 +238,7 @@ func TestRepository_CreateFullTenantShouldCreateAnTenantWithoutNotExistingUsers(
 		t.Errorf("expected tenant's name to be '%v': got '%v'", data.Name, got.Name)
 	}
 
-	compareRetails(t, got.Retails, []tenant.RetailData{})
+	compareRetails(t, got.Retails, []retail.Data{})
 
 	compareUsers(t, got.Users, []user.Model{})
 }
@@ -250,7 +248,7 @@ func TestRepository_CreateFullTenantShouldCreateAnTenantWithExistingUsers(t *tes
 
 	repo, db := newRepo(t)
 
-	data := &tenant.Data{
+	data := &retail.TenantData{
 		Name: "tenant name",
 	}
 
@@ -288,7 +286,7 @@ func TestRepository_CreateFullTenantShouldCreateAnTenantWithExistingUsers(t *tes
 		t.Fatalf("expected a nil error: %v", err)
 	}
 
-	var got tenant.Model
+	var got retail.TenantModel
 
 	err = db.WithContext(t.Context()).
 		Where("id = ?", id).
@@ -303,7 +301,7 @@ func TestRepository_CreateFullTenantShouldCreateAnTenantWithExistingUsers(t *tes
 		t.Errorf("expected tenant's name to be '%v': got '%v'", data.Name, got.Name)
 	}
 
-	compareRetails(t, got.Retails, []tenant.RetailData{})
+	compareRetails(t, got.Retails, []retail.Data{})
 
 	compareUsers(t, got.Users, existingUsers)
 }
@@ -313,7 +311,7 @@ func TestRepository_CreateFullTenantShouldCreateAFullFeaturedTenant(t *testing.T
 
 	repo, db := newRepo(t)
 
-	data := &tenant.Data{
+	data := &retail.TenantData{
 		Name: "tenant name",
 	}
 
@@ -333,12 +331,12 @@ func TestRepository_CreateFullTenantShouldCreateAFullFeaturedTenant(t *testing.T
 
 	existingUsers := []user.Model{user1, user2}
 
-	retails := []tenant.RetailData{
+	retails := []retail.Data{
 		{
 			Name: "retail 1",
 			Storage: &retail.PlaceData{
 				Name: "Storage",
-				Items: []item.Data{
+				Items: []retail.ItemData{
 					{
 						Name: "item 1",
 					},
@@ -352,7 +350,7 @@ func TestRepository_CreateFullTenantShouldCreateAFullFeaturedTenant(t *testing.T
 			Name: "retail 2",
 			Storage: &retail.PlaceData{
 				Name: "Storage",
-				Items: []item.Data{
+				Items: []retail.ItemData{
 					{
 						Name: "item 3",
 					},
@@ -360,7 +358,7 @@ func TestRepository_CreateFullTenantShouldCreateAFullFeaturedTenant(t *testing.T
 				Children: []retail.PlaceData{
 					{
 						Name: "place 1",
-						Items: []item.Data{
+						Items: []retail.ItemData{
 							{
 								Name: "item 4",
 							},
@@ -392,7 +390,7 @@ func TestRepository_CreateFullTenantShouldCreateAFullFeaturedTenant(t *testing.T
 		t.Fatalf("expected a nil error: %v", err)
 	}
 
-	var got tenant.Model
+	var got retail.TenantModel
 
 	err = db.WithContext(t.Context()).
 		Where("id = ?", id).
@@ -417,16 +415,16 @@ func TestRepository_CreateFullTenantShouldCreateATenantWithRetails(t *testing.T)
 
 	repo, db := newRepo(t)
 
-	data := &tenant.Data{
+	data := &retail.TenantData{
 		Name: "tenant name",
 	}
 
-	retails := []tenant.RetailData{
+	retails := []retail.Data{
 		{
 			Name: "retail 1",
 			Storage: &retail.PlaceData{
 				Name: "Storage",
-				Items: []item.Data{
+				Items: []retail.ItemData{
 					{
 						Name: "item 1",
 					},
@@ -440,7 +438,7 @@ func TestRepository_CreateFullTenantShouldCreateATenantWithRetails(t *testing.T)
 			Name: "retail 2",
 			Storage: &retail.PlaceData{
 				Name: "Storage",
-				Items: []item.Data{
+				Items: []retail.ItemData{
 					{
 						Name: "item 3",
 					},
@@ -448,7 +446,7 @@ func TestRepository_CreateFullTenantShouldCreateATenantWithRetails(t *testing.T)
 				Children: []retail.PlaceData{
 					{
 						Name: "place 1",
-						Items: []item.Data{
+						Items: []retail.ItemData{
 							{
 								Name: "item 4",
 							},
@@ -467,7 +465,7 @@ func TestRepository_CreateFullTenantShouldCreateATenantWithRetails(t *testing.T)
 		t.Fatalf("expected a nil error: %v", err)
 	}
 
-	var got tenant.Model
+	var got retail.TenantModel
 
 	err = db.WithContext(t.Context()).
 		Where("id = ?", id).
@@ -484,11 +482,11 @@ func TestRepository_CreateFullTenantShouldCreateATenantWithRetails(t *testing.T)
 
 	retailDAO := retail.NewDAO(validation.New())
 
-	slices.SortFunc(retails, func(a, b tenant.RetailData) int {
+	slices.SortFunc(retails, func(a, b retail.Data) int {
 		return cmp.Compare(a.Name, b.Name)
 	})
 
-	slices.SortFunc(got.Retails, func(a, b retail.Model) int {
+	slices.SortFunc(got.Retails, func(a, b retail.RetailModel) int {
 		return cmp.Compare(a.Name, b.Name)
 	})
 
