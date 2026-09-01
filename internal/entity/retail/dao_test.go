@@ -3,6 +3,7 @@ package retail_test
 import (
 	"cmp"
 	"errors"
+	"maps"
 	"slices"
 	"testing"
 
@@ -27,6 +28,74 @@ func newDAO(t *testing.T) (*retail.DAO, *gorm.DB) {
 	}
 
 	return retail.NewDAO(validation.New()), db
+}
+
+func comparePlace(t *testing.T, data *retail.PlaceData, domain *retail.Place) {
+	if data.Name != domain.Name {
+		t.Errorf("expected name to be '%v': got '%v'", data.Name, domain.Name)
+	}
+
+	if len(data.Items) != len(domain.Items) {
+		t.Fatalf("different items length: expeceted '%v' got '%v'", len(data.Items), len(domain.Items))
+	}
+
+	itemDataSlice := slices.SortedFunc(
+		slices.Values(data.Items),
+		func(a, b item.Data) int {
+			return cmp.Compare(a.Name, b.Name)
+		},
+	)
+
+	itemModelSlice := slices.SortedFunc(
+		slices.Values(domain.Items),
+		func(a, b item.Item) int {
+			return cmp.Compare(a.Name, b.Name)
+		},
+	)
+
+	for i, itemData := range itemDataSlice {
+		itemModel := itemModelSlice[i]
+
+		if itemData.Name != itemModel.Name {
+			t.Errorf("expected item name to be '%v': got '%v'", itemData.Name, itemModel.Name)
+		}
+
+		if itemData.Desc != itemModel.Desc {
+			t.Errorf("expected item desc to be '%v': got '%v'", itemData.Desc, itemModel.Desc)
+		}
+
+		if itemData.Stock != itemModel.Stock {
+			t.Errorf("expected item stock to be '%v': got '%v'", itemData.Stock, itemModel.Stock)
+		}
+
+		if !maps.Equal(itemData.Attrs, itemModel.Attrs) {
+			t.Errorf("expected item attrs to be '%v': got '%v'", itemData.Attrs, itemModel.Attrs)
+		}
+	}
+
+	if len(data.Children) != len(domain.Children) {
+		t.Fatalf("expected '%v' children: got '%v'", len(data.Children), len(domain.Children))
+	}
+
+	dataChildren := slices.SortedFunc(
+		slices.Values(data.Children),
+		func(a, b retail.PlaceData) int {
+			return cmp.Compare(a.Name, b.Name)
+		},
+	)
+
+	modelChildren := slices.SortedFunc(
+		slices.Values(domain.Children),
+		func(a, b retail.Place) int {
+			return cmp.Compare(a.Name, b.Name)
+		},
+	)
+
+	for i, child := range dataChildren {
+		modelChild := modelChildren[i]
+
+		comparePlace(t, &child, &modelChild)
+	}
 }
 
 func TestDAO_CreateRetailShouldRequireRetailName(t *testing.T) {

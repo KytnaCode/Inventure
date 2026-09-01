@@ -1,13 +1,8 @@
 package retail
 
 import (
-	"context"
-	"fmt"
-
-	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
 	"github.com/kytnacode/inventure/internal/entity/item"
-	"gorm.io/gorm"
 )
 
 // Data is used by [Repository] to create a new retail.
@@ -41,48 +36,6 @@ type PlaceData struct {
 
 	// Items are items directly contained in this place.
 	Items []item.Data
-}
-
-// Repository handles business logic for retails and places.
-type Repository struct {
-	db  *gorm.DB
-	v   *validator.Validate
-	dao *DAO
-}
-
-// NewRepository creates a new [Repository].
-func NewRepository(db *gorm.DB, v *validator.Validate) *Repository {
-	return &Repository{
-		db: db,
-		v:  v,
-		dao: &DAO{
-			v: v,
-		},
-	}
-}
-
-// CreateRetail creates a new retail and returns its ID.
-func (r *Repository) CreateRetail(
-	ctx context.Context,
-	retailData *Data,
-) (id string, err error) {
-	var newID string
-
-	err = r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		retailID, err := r.dao.CreateRetail(tx, retailData)
-		if err != nil {
-			return err
-		}
-
-		newID = retailID.String()
-
-		return nil
-	})
-	if err != nil {
-		return "", fmt.Errorf("could not create retail: %w", err)
-	}
-
-	return newID, nil
 }
 
 func itemModelToDomain(models []item.Model) []item.Item {
