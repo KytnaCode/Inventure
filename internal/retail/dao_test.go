@@ -33,7 +33,7 @@ func TestDAO_CreateRetailShouldRequireRetailName(t *testing.T) {
 
 	dao, db := newDAO(t)
 
-	data := retail.RetailData{
+	data := retail.Data{
 		// Name:     "real retail",
 		TenantID: uuid.New(),
 	}
@@ -57,7 +57,7 @@ func TestDAO_CreateRetailShouldCreateRetail(t *testing.T) {
 
 	dao, db := newDAO(t)
 
-	data := retail.RetailData{
+	data := retail.Data{
 		Name:     "real retail",
 		TenantID: uuid.New(),
 	}
@@ -88,7 +88,7 @@ func TestDAO_CreateRetailListShouldCreateRetails(t *testing.T) {
 
 	dao, db := newDAO(t)
 
-	data := []retail.RetailData{
+	data := []retail.Data{
 		{
 			Name:     "real retail",
 			TenantID: uuid.New(),
@@ -115,7 +115,7 @@ func TestDAO_CreateRetailListShouldCreateRetails(t *testing.T) {
 		return cmp.Compare(a.Name, b.Name)
 	})
 
-	slices.SortFunc(data, func(a, b retail.RetailData) int {
+	slices.SortFunc(data, func(a, b retail.Data) int {
 		return cmp.Compare(a.Name, b.Name)
 	})
 
@@ -141,7 +141,7 @@ func TestDAO_CreatePlaceShouldCreatePlace(t *testing.T) {
 
 	dao, db := newDAO(t)
 
-	retailData := retail.RetailData{
+	retailData := retail.Data{
 		Name: "abc",
 	}
 
