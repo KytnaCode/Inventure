@@ -439,8 +439,6 @@ func TestRepository_CreateFullTenantShouldCreateATenantWithRetails(t *testing.T)
 		t.Errorf("expected tenant's name to be '%v': got '%v'", data.Name, got.Name)
 	}
 
-	retailDAO := retail.NewDAO()
-
 	slices.SortFunc(retails, func(a, b retail.Data) int {
 		return cmp.Compare(a.Name, b.Name)
 	})
@@ -450,12 +448,10 @@ func TestRepository_CreateFullTenantShouldCreateATenantWithRetails(t *testing.T)
 	})
 
 	for i, r := range got.Retails {
-		places, err := retailDAO.GetRetailPlaces(db, r.ID)
+		domain, err := repo.GetRetailStorage(db, r.ID)
 		if err != nil {
 			t.Fatalf("could not get retail places: %v", err)
 		}
-
-		domain := retail.PlaceFromModel(places)
 
 		expected := retails[i]
 
