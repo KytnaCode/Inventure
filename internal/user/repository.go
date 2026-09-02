@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
 	"github.com/kytnacode/inventure/passhash"
 	"gorm.io/gorm"
@@ -57,14 +56,12 @@ type SignInData struct {
 // Repository handles user related business logic.
 type Repository struct {
 	table gorm.Interface[Model]
-	v     *validator.Validate
 }
 
 // NewRepository creates a new [Repository].
-func NewRepository(db gorm.Interface[Model], v *validator.Validate) *Repository {
+func NewRepository(db gorm.Interface[Model]) *Repository {
 	return &Repository{
 		table: db,
-		v:     v,
 	}
 }
 
@@ -75,10 +72,6 @@ func (r *Repository) SignUp(ctx context.Context, data *SignUpData) (userData *Cl
 		Name:         data.Name,
 		Email:        data.Email,
 		PasswordHash: &data.PasswordHash,
-	}
-
-	if err := r.v.Struct(m); err != nil {
-		return nil, fmt.Errorf("invalid user model: %w", err)
 	}
 
 	err = r.table.Create(ctx, m)
