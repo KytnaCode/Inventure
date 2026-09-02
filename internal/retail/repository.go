@@ -58,15 +58,13 @@ var _ tenantRepository = &Repository{}
 
 // Repository handles high level persistence logic for tenants.
 type Repository struct {
-	db      *gorm.DB
-	userDAO *user.DAO
+	db *gorm.DB
 }
 
 // NewRepository creates a new [Repository].
 func NewRepository(db *gorm.DB) *Repository {
 	return &Repository{
-		db:      db,
-		userDAO: user.NewDAO(),
+		db: db,
 	}
 }
 
