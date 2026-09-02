@@ -2,10 +2,8 @@ package retail
 
 import (
 	"cmp"
-	"fmt"
 	"slices"
 
-	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
 	"github.com/kytnacode/inventure/internal/retail/placepath"
 	"github.com/kytnacode/inventure/internal/user"
@@ -39,12 +37,8 @@ func (m *ItemModel) TableName() string {
 	return "items"
 }
 
-// NewModel validates data and returns a new [ItemModel].
-func NewModel(v *validator.Validate, data *ItemData) (*ItemModel, error) {
-	if err := v.Struct(data); err != nil {
-		return nil, fmt.Errorf("invalid item data: %w", err)
-	}
-
+// NewItemModel validates data and returns a new [ItemModel].
+func NewItemModel(data *ItemData) *ItemModel {
 	m := &ItemModel{
 		ID:    uuid.New(),
 		Name:  data.Name,
@@ -53,7 +47,7 @@ func NewModel(v *validator.Validate, data *ItemData) (*ItemModel, error) {
 		Attrs: data.Attrs,
 	}
 
-	return m, nil
+	return m
 }
 
 // ToDomain converts an [ItemModel] into an [Item].

@@ -3,22 +3,17 @@ package retail
 import (
 	"fmt"
 
-	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
 	"github.com/kytnacode/inventure/internal/retail/placepath"
 	"gorm.io/gorm"
 )
 
 // DAO handles low-level persistence operations on retails and places.
-type DAO struct {
-	v *validator.Validate
-}
+type DAO struct{}
 
 // NewDAO creates a new [DAO].
-func NewDAO(v *validator.Validate) *DAO {
-	return &DAO{
-		v: v,
-	}
+func NewDAO() *DAO {
+	return &DAO{}
 }
 
 // CreateRetailsList creates a list of retails and returns its IDs.
@@ -47,19 +42,7 @@ func (d *DAO) CreateRetailsList(tx *gorm.DB, data []Data) ([]uuid.UUID, error) {
 		models = append(models, m)
 	}
 
-	var err error
-
-	if len(models) == 1 {
-		err = d.v.Struct(models[0])
-	} else {
-		err = d.v.Var(models, "dive")
-	}
-
-	if err != nil {
-		return nil, fmt.Errorf("invalid retail data: %w", err)
-	}
-
-	err = tx.Create(models).Error
+	err := tx.Create(models).Error
 	if err != nil {
 		return nil, fmt.Errorf("could not create retail: %w", err)
 	}
@@ -108,10 +91,7 @@ func (d *DAO) CreatePlace(
 	items := make([]*ItemModel, 0, len(data.Items))
 
 	for _, itemData := range data.Items {
-		itemModel, err := NewModel(d.v, &itemData)
-		if err != nil {
-			return err
-		}
+		itemModel := NewItemModel(&itemData)
 
 		itemModel.PlaceID = m.ID
 
