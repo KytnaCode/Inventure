@@ -20,7 +20,7 @@ func newDAO(t *testing.T) (*retail.DAO, *gorm.DB) {
 		t.Fatalf("could not open test database instance: %v", err)
 	}
 
-	err = db.AutoMigrate(&retail.RetailModel{}, &retail.PlaceModel{}, &retail.ItemModel{})
+	err = db.AutoMigrate(&retail.Model{}, &retail.PlaceModel{}, &retail.ItemModel{})
 	if err != nil {
 		t.Fatalf("could not run test database migrations: %v", err)
 	}
@@ -67,7 +67,7 @@ func TestDAO_CreateRetailShouldCreateRetail(t *testing.T) {
 		t.Fatalf("expected a nil error: %v", err)
 	}
 
-	var got retail.RetailModel
+	var got retail.Model
 
 	err = db.WithContext(t.Context()).Where("id = ?", id).Take(&got).Error
 	if err != nil {
@@ -104,14 +104,14 @@ func TestDAO_CreateRetailListShouldCreateRetails(t *testing.T) {
 		t.Fatalf("expected a nil error: %v", err)
 	}
 
-	var gotRetails []retail.RetailModel
+	var gotRetails []retail.Model
 
 	err = db.WithContext(t.Context()).Where("id IN ?", ids).Find(&gotRetails).Error
 	if err != nil {
 		t.Fatalf("could not get inserted retail: %v", err)
 	}
 
-	slices.SortFunc(gotRetails, func(a, b retail.RetailModel) int {
+	slices.SortFunc(gotRetails, func(a, b retail.Model) int {
 		return cmp.Compare(a.Name, b.Name)
 	})
 

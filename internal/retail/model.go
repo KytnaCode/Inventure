@@ -13,6 +13,7 @@ import (
 	"gorm.io/gorm"
 )
 
+// ItemModel is the database representation of an item.
 type ItemModel struct {
 	// ID is item's unique ID.
 	ID uuid.UUID `gorm:"primaryKey"`
@@ -67,7 +68,8 @@ func (m *ItemModel) ToDomain() *Item {
 	}
 }
 
-type RetailModel struct {
+// Model is the database representation of a retail.
+type Model struct {
 	// ID is the retail's unique ID.
 	ID uuid.UUID `gorm:"primaryKey"`
 
@@ -85,7 +87,7 @@ type RetailModel struct {
 }
 
 // TableName returns retail's table name. Implements [gorm/schema.Tabler].
-func (m *RetailModel) TableName() string {
+func (m *Model) TableName() string {
 	return "retails"
 }
 
@@ -184,6 +186,7 @@ func placeFromModel(place, parent *Place, currPath string, places []PlaceModel, 
 	return i
 }
 
+// TenantModel is the database representation of a tenant.
 type TenantModel struct {
 	gorm.Model
 
@@ -197,7 +200,7 @@ type TenantModel struct {
 	Users []user.Model `gorm:"many2many:tenant_users;"`
 
 	// Retails are tenant-owned retails.
-	Retails []RetailModel `gorm:"foreignKey:TenantID"`
+	Retails []Model `gorm:"foreignKey:TenantID"`
 }
 
 // TableName returns tenant's table name. Implements [gorm/schema.Tabler].

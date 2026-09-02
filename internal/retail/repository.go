@@ -98,7 +98,7 @@ func (r *Repository) CreateFullTenant(
 	err = r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		tenantID := uuid.New()
 
-		var retailModels []RetailModel
+		var retailModels []Model
 
 		if len(retails) != 0 {
 			ids, err := r.retailDAO.CreateRetailsList(tx, dataFromRetailData(retails, tenantID))
@@ -106,10 +106,10 @@ func (r *Repository) CreateFullTenant(
 				return err
 			}
 
-			retailModels = make([]RetailModel, 0, len(ids))
+			retailModels = make([]Model, 0, len(ids))
 
 			for _, id := range ids {
-				retailModels = append(retailModels, RetailModel{
+				retailModels = append(retailModels, Model{
 					ID: id,
 				})
 			}
