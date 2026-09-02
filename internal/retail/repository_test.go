@@ -9,7 +9,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/kytnacode/inventure/internal/retail"
 	"github.com/kytnacode/inventure/internal/user"
-	"github.com/kytnacode/inventure/validation"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
@@ -33,7 +32,7 @@ func newRepo(t *testing.T) (*retail.Repository, *gorm.DB) {
 		t.Fatalf("could not run migrations on test database: %v", err)
 	}
 
-	repo := retail.NewRepository(db, validation.New())
+	repo := retail.NewRepository(db)
 
 	return repo, db
 }
@@ -440,7 +439,7 @@ func TestRepository_CreateFullTenantShouldCreateATenantWithRetails(t *testing.T)
 		t.Errorf("expected tenant's name to be '%v': got '%v'", data.Name, got.Name)
 	}
 
-	retailDAO := retail.NewDAO(validation.New())
+	retailDAO := retail.NewDAO()
 
 	slices.SortFunc(retails, func(a, b retail.Data) int {
 		return cmp.Compare(a.Name, b.Name)

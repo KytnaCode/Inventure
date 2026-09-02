@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
 	"github.com/kytnacode/inventure/internal/user"
 	"gorm.io/gorm"
@@ -64,11 +63,11 @@ type Repository struct {
 }
 
 // NewRepository creates a new [Repository].
-func NewRepository(db *gorm.DB, v *validator.Validate) *Repository {
+func NewRepository(db *gorm.DB) *Repository {
 	return &Repository{
 		db:        db,
 		userDAO:   user.NewDAO(),
-		retailDAO: NewDAO(v),
+		retailDAO: NewDAO(),
 	}
 }
 

@@ -2,14 +2,11 @@ package retail_test
 
 import (
 	"cmp"
-	"errors"
 	"slices"
 	"testing"
 
-	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
 	"github.com/kytnacode/inventure/internal/retail"
-	"github.com/kytnacode/inventure/validation"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
@@ -25,31 +22,7 @@ func newDAO(t *testing.T) (*retail.DAO, *gorm.DB) {
 		t.Fatalf("could not run test database migrations: %v", err)
 	}
 
-	return retail.NewDAO(validation.New()), db
-}
-
-func TestDAO_CreateRetailShouldRequireRetailName(t *testing.T) {
-	t.Parallel()
-
-	dao, db := newDAO(t)
-
-	data := retail.Data{
-		// Name:     "real retail",
-		TenantID: uuid.New(),
-	}
-
-	id, err := dao.CreateRetail(db, &data)
-	if id.String() == "" {
-		t.Errorf("expected an empty id: got '%v'", id.String())
-	}
-
-	if err == nil {
-		t.Fatalf("expected a non-nil error: %v", err)
-	}
-
-	if _, ok := errors.AsType[validator.ValidationErrors](err); !ok {
-		t.Errorf("expected error to be validation errors: got '%v'", err)
-	}
+	return retail.NewDAO(), db
 }
 
 func TestDAO_CreateRetailShouldCreateRetail(t *testing.T) {
