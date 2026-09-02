@@ -25,7 +25,7 @@ func newRepo(t *testing.T) (*retail.Repository, *gorm.DB) {
 	err = db.AutoMigrate(
 		retail.TenantModel{},
 		user.Model{},
-		retail.RetailModel{},
+		retail.Model{},
 		retail.PlaceModel{},
 		retail.ItemModel{},
 	)
@@ -79,7 +79,7 @@ func compareUsers(t *testing.T, got, existingUsers []user.Model) {
 	}
 }
 
-func compareRetails(t *testing.T, got []retail.RetailModel, expected []retail.Data) {
+func compareRetails(t *testing.T, got []retail.Model, expected []retail.Data) {
 	t.Helper()
 
 	if len(got) != len(expected) {
@@ -90,7 +90,7 @@ func compareRetails(t *testing.T, got []retail.RetailModel, expected []retail.Da
 		)
 	}
 
-	slices.SortFunc(got, func(a, b retail.RetailModel) int {
+	slices.SortFunc(got, func(a, b retail.Model) int {
 		return cmp.Compare(a.Name, b.Name)
 	})
 
@@ -486,7 +486,7 @@ func TestRepository_CreateFullTenantShouldCreateATenantWithRetails(t *testing.T)
 		return cmp.Compare(a.Name, b.Name)
 	})
 
-	slices.SortFunc(got.Retails, func(a, b retail.RetailModel) int {
+	slices.SortFunc(got.Retails, func(a, b retail.Model) int {
 		return cmp.Compare(a.Name, b.Name)
 	})
 

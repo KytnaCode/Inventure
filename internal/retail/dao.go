@@ -23,10 +23,10 @@ func NewDAO(v *validator.Validate) *DAO {
 
 // CreateRetailsList creates a list of retails and returns its IDs.
 func (d *DAO) CreateRetailsList(tx *gorm.DB, data []Data) ([]uuid.UUID, error) {
-	models := make([]RetailModel, 0, len(data))
+	models := make([]Model, 0, len(data))
 
 	for _, retailData := range data {
-		m := RetailModel{
+		m := Model{
 			ID:       uuid.New(),
 			Name:     retailData.Name,
 			TenantID: retailData.TenantID,
