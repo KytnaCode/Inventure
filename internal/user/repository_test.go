@@ -11,7 +11,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func newSqliteRepo(t *testing.T) (*user.Repository, gorm.Interface[user.Model]) {
+func newSqliteRepo(t *testing.T) (*user.Repository, *gorm.DB) {
 	t.Helper()
 
 	dbPath := path.Join(t.TempDir(), "test.db")
@@ -25,11 +25,9 @@ func newSqliteRepo(t *testing.T) (*user.Repository, gorm.Interface[user.Model]) 
 		t.Fatalf("could not migrate user's schema: %v", err)
 	}
 
-	table := gorm.G[user.Model](db)
+	repo := user.NewRepository(db)
 
-	repo := user.NewRepository(table)
-
-	return repo, table
+	return repo, db
 }
 
 func TestRepositorySqliteShouldCreateUser(t *testing.T) {
@@ -42,14 +40,16 @@ func TestRepositorySqliteShouldCreateUser(t *testing.T) {
 		PasswordHash: "$argon2id$v=19$m=65536,t=3,p=4$uiOyD7yhvKuJwK2B+mYX9w$ZwOB3SQDZWgSI17gaRUJ5Slzr5SH8XErpN/ihlacVR8",
 	}
 
-	repo, table := newSqliteRepo(t)
+	repo, db := newSqliteRepo(t)
 
 	userData, err := repo.SignUp(t.Context(), &data)
 	if err != nil {
 		t.Fatalf("could not create user: %v", err)
 	}
 
-	user, err := table.Where("id = ?", userData.ID).Take(t.Context())
+	var user user.Model
+
+	err = db.WithContext(t.Context()).Where("id = ?", userData.ID).Take(&user).Error
 	if err != nil {
 		t.Fatalf("could not get created user: %v", err)
 	}
@@ -100,7 +100,7 @@ func TestRepository_SignInShouldReturnUserNotFoundSqlite(t *testing.T) {
 func TestRepository_SignInShouldReturnNoPasswordAuthErrorSqlite(t *testing.T) {
 	t.Parallel()
 
-	r, g := newSqliteRepo(t)
+	r, db := newSqliteRepo(t)
 
 	u := user.Model{
 		ID:    uuid.New(),
@@ -109,7 +109,7 @@ func TestRepository_SignInShouldReturnNoPasswordAuthErrorSqlite(t *testing.T) {
 		// No Password hash.
 	}
 
-	err := g.Create(t.Context(), &u)
+	err := db.WithContext(t.Context()).Create(&u).Error
 	if err != nil {
 		t.Fatalf("could not insert new user: %v", err)
 	}
@@ -145,9 +145,9 @@ func TestRepository_SignInShouldReturnWrongCredentialsErrorSqlite(t *testing.T) 
 		PasswordHash: &actualHash,
 	}
 
-	r, g := newSqliteRepo(t)
+	r, db := newSqliteRepo(t)
 
-	err := g.Create(t.Context(), &u)
+	err := db.WithContext(t.Context()).Create(&u).Error
 	if err != nil {
 		t.Fatalf("could not create test user: %v", err)
 	}

@@ -55,13 +55,13 @@ type SignInData struct {
 
 // Repository handles user related business logic.
 type Repository struct {
-	table gorm.Interface[Model]
+	db *gorm.DB
 }
 
 // NewRepository creates a new [Repository].
-func NewRepository(db gorm.Interface[Model]) *Repository {
+func NewRepository(db *gorm.DB) *Repository {
 	return &Repository{
-		table: db,
+		db: db,
 	}
 }
 
@@ -74,7 +74,7 @@ func (r *Repository) SignUp(ctx context.Context, data *SignUpData) (userData *Cl
 		PasswordHash: &data.PasswordHash,
 	}
 
-	err = r.table.Create(ctx, m)
+	err = r.db.WithContext(ctx).Create(m).Error
 	if err != nil {
 		return nil, fmt.Errorf("could not create user: %w", err)
 	}
@@ -94,7 +94,9 @@ func (r *Repository) SignUp(ctx context.Context, data *SignUpData) (userData *Cl
 // password-based authentication, [ErrNotPasswordAuth] is returned, at last, if user was found
 // but their credentials don't match, [ErrWrongCredentials] is returned.
 func (r *Repository) SignIn(ctx context.Context, data *SignInData) (userData *Claims, err error) {
-	u, err := r.table.Where("email = ?", data.Email).Take(ctx)
+	var u Model
+
+	err = r.db.WithContext(ctx).Where("email = ?", data.Email).Take(&u).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrUserNotFound
