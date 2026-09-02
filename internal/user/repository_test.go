@@ -7,7 +7,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/kytnacode/inventure/internal/user"
-	"github.com/kytnacode/inventure/validation"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
@@ -28,7 +27,7 @@ func newSqliteRepo(t *testing.T) (*user.Repository, gorm.Interface[user.Model]) 
 
 	table := gorm.G[user.Model](db)
 
-	repo := user.NewRepository(table, validation.New())
+	repo := user.NewRepository(table)
 
 	return repo, table
 }

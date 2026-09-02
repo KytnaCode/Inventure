@@ -47,7 +47,7 @@ func newRoutes(t *testing.T) (
 
 	g := gorm.G[user.Model](db)
 
-	userRepo := user.NewRepository(g, v)
+	userRepo := user.NewRepository(g)
 
 	session := *sessionManager
 
