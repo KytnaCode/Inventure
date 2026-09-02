@@ -22,7 +22,7 @@ func NewDAO(v *validator.Validate) *DAO {
 }
 
 // CreateRetailsList creates a list of retails and returns its IDs.
-func (d *DAO) CreateRetailsList(tx *gorm.DB, data []RetailData) ([]uuid.UUID, error) {
+func (d *DAO) CreateRetailsList(tx *gorm.DB, data []Data) ([]uuid.UUID, error) {
 	models := make([]RetailModel, 0, len(data))
 
 	for _, retailData := range data {
@@ -74,8 +74,8 @@ func (d *DAO) CreateRetailsList(tx *gorm.DB, data []RetailData) ([]uuid.UUID, er
 }
 
 // CreateRetail creates a new retail and returns its ID.
-func (d *DAO) CreateRetail(tx *gorm.DB, data *RetailData) (uuid.UUID, error) {
-	ids, err := d.CreateRetailsList(tx, []RetailData{*data})
+func (d *DAO) CreateRetail(tx *gorm.DB, data *Data) (uuid.UUID, error) {
+	ids, err := d.CreateRetailsList(tx, []Data{*data})
 	if err != nil {
 		return uuid.UUID{}, err
 	}
