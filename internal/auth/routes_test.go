@@ -23,7 +23,7 @@ import (
 
 func newRoutes(t *testing.T) (
 	*auth.Routes,
-	gorm.Interface[user.Model],
+	*gorm.DB,
 	*scs.SessionManager,
 ) {
 	t.Helper()
@@ -45,9 +45,7 @@ func newRoutes(t *testing.T) (
 		t.Fatalf("could not migrate test database: %v", err)
 	}
 
-	g := gorm.G[user.Model](db)
-
-	userRepo := user.NewRepository(g)
+	userRepo := user.NewRepository(db)
 
 	session := *sessionManager
 
@@ -61,13 +59,13 @@ func newRoutes(t *testing.T) (
 		LoginAttempTimeWindow: time.Minute,
 	}
 
-	return auth.NewRoutes(conf), g, &session
+	return auth.NewRoutes(conf), db, &session
 }
 
 func TestRoutes_SignUpShouldStoreUser(t *testing.T) {
 	t.Parallel()
 
-	ro, g, sessionManager := newRoutes(t)
+	ro, db, sessionManager := newRoutes(t)
 
 	data := auth.SignUpDto{
 		Name:     "my user name",
@@ -83,7 +81,9 @@ func TestRoutes_SignUpShouldStoreUser(t *testing.T) {
 
 	sessionManager.LoadAndSave(http.HandlerFunc(ro.SignUp)).ServeHTTP(w, req)
 
-	got, err := g.Where("email = ?", data.Email).First(t.Context())
+	var got user.Model
+
+	err := db.WithContext(t.Context()).Where("email = ?", data.Email).First(&got).Error
 	if err != nil {
 		t.Fatalf("could not get created user: %v", err)
 	}
@@ -239,7 +239,7 @@ func TestRoutes_SignInShouldReturnNoPasswordAuthError(t *testing.T) {
 
 	const userEmail = "my-real@email.com"
 
-	ro, g, sessionManager := newRoutes(t)
+	ro, db, sessionManager := newRoutes(t)
 
 	u := &user.Model{
 		Email: userEmail,
@@ -248,7 +248,7 @@ func TestRoutes_SignInShouldReturnNoPasswordAuthError(t *testing.T) {
 		// PasswordHash:
 	}
 
-	if err := g.Create(t.Context(), u); err != nil {
+	if err := db.WithContext(t.Context()).Create(u).Error; err != nil {
 		t.Fatalf("could not create test user: %v", err)
 	}
 
@@ -305,7 +305,7 @@ func TestRoutes_SignInShouldReturnWrongCredentialsError(t *testing.T) {
 		userPassword = "iloveakko"
 	)
 
-	ro, g, sessionManager := newRoutes(t)
+	ro, db, sessionManager := newRoutes(t)
 
 	otherPass := passhash.Hash([]byte("other-password"))
 
@@ -314,7 +314,7 @@ func TestRoutes_SignInShouldReturnWrongCredentialsError(t *testing.T) {
 		PasswordHash: &otherPass,
 	}
 
-	if err := g.Create(t.Context(), u); err != nil {
+	if err := db.WithContext(t.Context()).Create(u).Error; err != nil {
 		t.Fatalf("could not create test user: %v", err)
 	}
 
@@ -366,7 +366,7 @@ func TestRoutes_SignInShouldStoreUserInSession(t *testing.T) {
 		userPass  = "ilovemygf"
 	)
 
-	ro, g, sessionManager := newRoutes(t)
+	ro, db, sessionManager := newRoutes(t)
 
 	passwordHash := passhash.Hash([]byte(userPass))
 
@@ -376,7 +376,7 @@ func TestRoutes_SignInShouldStoreUserInSession(t *testing.T) {
 		Name:         "Amity Blight",
 	}
 
-	if err := g.Create(t.Context(), u); err != nil {
+	if err := db.WithContext(t.Context()).Create(u).Error; err != nil {
 		t.Fatalf("could not create test user: %v", err)
 	}
 
