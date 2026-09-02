@@ -73,7 +73,7 @@ func NewRepository(db *gorm.DB, v *validator.Validate) *Repository {
 }
 
 // CreateFullTenant creates a tenant and a list of retails owned by it, it also set the given user
-// ids as members of the tenant, it drops non-existing user ids.
+// ids as members of the tenant.
 func (r *Repository) CreateFullTenant(
 	ctx context.Context,
 	data *TenantData,
@@ -83,16 +83,9 @@ func (r *Repository) CreateFullTenant(
 	users := make([]user.Model, 0, len(userIDs))
 
 	for _, id := range userIDs {
-		found, err := r.userDAO.Exists(r.db, id)
-		if err != nil {
-			return uuid.UUID{}, fmt.Errorf("could not check if user with ID '%v' exists", id)
-		}
-
-		if found {
-			users = append(users, user.Model{
-				ID: id,
-			})
-		}
+		users = append(users, user.Model{
+			ID: id,
+		})
 	}
 
 	err = r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
