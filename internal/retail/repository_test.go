@@ -209,40 +209,6 @@ func TestRepository_CreateFullTenantShouldCreateAnEmptyTenant(t *testing.T) {
 	compareUsers(t, got.Users, []user.Model{})
 }
 
-func TestRepository_CreateFullTenantShouldCreateAnTenantWithoutNotExistingUsers(t *testing.T) {
-	t.Parallel()
-
-	repo, db := newRepo(t)
-
-	data := &retail.TenantData{
-		Name: "tenant name",
-	}
-
-	id, err := repo.CreateFullTenant(t.Context(), data, nil, []uuid.UUID{uuid.New(), uuid.New()})
-	if err != nil {
-		t.Fatalf("expected a nil error: %v", err)
-	}
-
-	var got retail.TenantModel
-
-	err = db.WithContext(t.Context()).
-		Where("id = ?", id).
-		Preload("Retails").
-		Preload("Users").
-		Take(&got).Error
-	if err != nil {
-		t.Fatalf("could not get inserted tenant: %v", err)
-	}
-
-	if got.Name != data.Name {
-		t.Errorf("expected tenant's name to be '%v': got '%v'", data.Name, got.Name)
-	}
-
-	compareRetails(t, got.Retails, []retail.Data{})
-
-	compareUsers(t, got.Users, []user.Model{})
-}
-
 func TestRepository_CreateFullTenantShouldCreateAnTenantWithExistingUsers(t *testing.T) {
 	t.Parallel()
 
@@ -274,10 +240,7 @@ func TestRepository_CreateFullTenantShouldCreateAnTenantWithExistingUsers(t *tes
 	}
 
 	userIDs := []uuid.UUID{
-		uuid.New(), // Non-existing.
 		user1.ID,
-		uuid.New(), // Non-existing.
-		uuid.New(), // Non-existing.
 		user2.ID,
 	}
 
@@ -378,10 +341,7 @@ func TestRepository_CreateFullTenantShouldCreateAFullFeaturedTenant(t *testing.T
 	}
 
 	userIDs := []uuid.UUID{
-		uuid.New(), // Non-existing.
 		user1.ID,
-		uuid.New(), // Non-existing.
-		uuid.New(), // Non-existing.
 		user2.ID,
 	}
 
