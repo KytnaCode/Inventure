@@ -7,6 +7,14 @@ import (
 	"github.com/kytnacode/inventure/internal/user"
 )
 
+// Entity reference and table names.
+const (
+	EntityItems   = "items"
+	EntityRetails = "retails"
+	EntityTenants = "tenants"
+	EntityPlaces  = "places"
+)
+
 // Item represents a retail's item.
 type Item struct {
 	// ID is the item's unique ID.
