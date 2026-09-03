@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
+	"github.com/kytnacode/inventure/internal/auth/rbac"
 	"gorm.io/gorm"
 )
 
@@ -80,4 +81,29 @@ func (r *Repository) UserByEmail(ctx context.Context, email string) (u *User, er
 	}
 
 	return m.ToDomain(), nil
+}
+
+// AssingRoles roles assign the roles with the given IDs to the user with the given ID.
+func (r *Repository) AssingRoles(
+	ctx context.Context,
+	userID uuid.UUID,
+	roleIDs ...uuid.UUID,
+) error {
+	roles := make([]rbac.RoleModel, 0, len(roleIDs))
+
+	for _, id := range roleIDs {
+		roles = append(roles, rbac.RoleModel{
+			ID: id,
+		})
+	}
+
+	err := r.db.WithContext(ctx).
+		Model(&Model{ID: userID}).
+		Association("Roles").
+		Append(&roles)
+	if err != nil {
+		return fmt.Errorf("could not assing roles to user: %w", err)
+	}
+
+	return nil
 }

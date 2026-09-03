@@ -2,6 +2,7 @@ package user
 
 import (
 	"github.com/google/uuid"
+	"github.com/kytnacode/inventure/internal/auth/rbac"
 	"gorm.io/gorm"
 )
 
@@ -21,6 +22,8 @@ type Model struct {
 	// PasswordHash is user's password hash for users using baked-in auth, nil for non baked-in auth
 	// users.
 	PasswordHash *string
+
+	Roles []rbac.RoleModel `gorm:"many2many:user_roles;"`
 }
 
 // TableName implements [gorm/schema.Tabler].
