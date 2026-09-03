@@ -43,7 +43,7 @@ type SignInDto struct {
 
 // RoutesConfig is the configuration for authentication routes.
 type RoutesConfig struct {
-	UserRepo              *user.Repository
+	UserService           *user.Service
 	LoginAttemptLimit     int
 	LoginAttempTimeWindow time.Duration
 	SessionManager        *scs.SessionManager
@@ -228,7 +228,7 @@ func (ro *Routes) signUpUser(
 ) (userData *user.Claims, ok bool) {
 	logger := logging.FromCtx(ctx)
 
-	userData, err := ro.conf.UserRepo.SignUp(ctx, &user.SignUpData{
+	userData, err := ro.conf.UserService.SignUp(ctx, &user.SignUpData{
 		Email:        model.Email,
 		Name:         model.Name,
 		PasswordHash: passHash,
@@ -256,7 +256,7 @@ func (ro *Routes) signInUser(
 ) (userData *user.Claims) {
 	logger := logging.FromCtx(ctx)
 
-	userData, err := ro.conf.UserRepo.SignIn(ctx, data)
+	userData, err := ro.conf.UserService.SignIn(ctx, data)
 	if err != nil {
 		if errors.Is(err, user.ErrUserNotFound) {
 			logger.Warn("user not found", logging.Error(err))

@@ -31,8 +31,9 @@ func (m *Model) TableName() string {
 // ToDomain converts a model into a domain user representation.
 func (m *Model) ToDomain() *User {
 	return &User{
-		ID:    m.ID,
-		Name:  m.Name,
-		Email: m.Email,
+		ID:           m.ID,
+		Name:         m.Name,
+		Email:        m.Email,
+		PasswordHash: m.PasswordHash,
 	}
 }
