@@ -5,8 +5,40 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
+	"github.com/kytnacode/inventure/internal/auth/rbac"
 	"github.com/kytnacode/inventure/internal/user"
+	"github.com/kytnacode/inventure/transaction"
+	"gorm.io/gorm"
 )
+
+// MasterRoleName is the name of the tenant master role.
+const MasterRoleName = "master"
+
+// ServiceAdapters contains transaction-scoped repositories used by [Service].
+type ServiceAdapters struct {
+	// TenantRepo implements tenant operations.
+	TenantRepo tenantRepository
+
+	// RoleCreator implements role operations.
+	RoleCreator rbac.RoleCreator
+
+	// Assignator implements role assignation.
+	Assignator roleAssignator
+}
+
+// ServiceProvider is a transaction provider for [Service].
+type ServiceProvider = transaction.Provider[*ServiceAdapters]
+
+// NewServiceProvider creates a new [ServiceProvider].
+func NewServiceProvider(db *gorm.DB) ServiceProvider {
+	return transaction.NewGormProvider(db, func(tx *gorm.DB) *ServiceAdapters {
+		return &ServiceAdapters{
+			TenantRepo:  NewRepository(tx),
+			Assignator:  user.NewRepository(tx),
+			RoleCreator: rbac.NewRepository(tx),
+		}
+	})
+}
 
 // tenantRepository abstracts away tenant's persistence layer.
 //
@@ -20,17 +52,22 @@ type tenantRepository interface {
 	) (id uuid.UUID, err error)
 }
 
+// roleAssignator assign roles to a user.
+type roleAssignator interface {
+	AssingRoles(ctx context.Context, userID uuid.UUID, roleIDs ...uuid.UUID) error
+}
+
 // Service handles high-level domain logic for tenants.
 //
 // Safe for concurrent use.
 type Service struct {
-	repo tenantRepository
+	provider ServiceProvider
 }
 
 // NewService creates a new [Service].
-func NewService(repo tenantRepository) *Service {
+func NewService(provider ServiceProvider) *Service {
 	return &Service{
-		repo: repo,
+		provider: provider,
 	}
 }
 
@@ -52,7 +89,27 @@ func (s *Service) CreateDefaultTenant(
 		},
 	}
 
-	id, err = s.repo.CreateFullTenant(ctx, &data, retails, []uuid.UUID{creator.ID})
+	err = s.provider.Transact(ctx, func(adapters *ServiceAdapters) error {
+		repo := adapters.TenantRepo
+		roleRepo := adapters.RoleCreator
+		userRepo := adapters.Assignator
+
+		id, err = repo.CreateFullTenant(ctx, &data, retails, []uuid.UUID{creator.ID})
+		if err != nil {
+			return err
+		}
+
+		res := rbac.NewResource(EntityTenants, id, nil)
+
+		masterRoleID, err := rbac.RoleBuilder(roleRepo).
+			Name(MasterRoleName).BelongsTo(res).
+			On(res).Allow(PermRoot).Build(ctx)
+		if err != nil {
+			return err
+		}
+
+		return userRepo.AssingRoles(ctx, creator.ID, masterRoleID)
+	})
 	if err != nil {
 		return uuid.UUID{}, fmt.Errorf("could not create default tenant: %w", err)
 	}

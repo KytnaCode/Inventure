@@ -34,7 +34,7 @@ type ItemModel struct {
 
 // TableName returns item's table name. Implements [gorm/schema.Tabler].
 func (m *ItemModel) TableName() string {
-	return "items"
+	return EntityItems
 }
 
 // NewItemModel validates data and returns a new [ItemModel].
@@ -82,7 +82,7 @@ type Model struct {
 
 // TableName returns retail's table name. Implements [gorm/schema.Tabler].
 func (m *Model) TableName() string {
-	return "retails"
+	return EntityRetails
 }
 
 // PlaceModel is the database representation of a [Place].
@@ -102,7 +102,7 @@ type PlaceModel struct {
 
 // TableName returns place's table name. Implements [gorm/schema.Tabler].
 func (m *PlaceModel) TableName() string {
-	return "places"
+	return EntityPlaces
 }
 
 // PlaceFromModel creates a [Place] from a list of [PlaceModel]. It's not necessary to pass all
@@ -199,5 +199,5 @@ type TenantModel struct {
 
 // TableName returns tenant's table name. Implements [gorm/schema.Tabler].
 func (m *TenantModel) TableName() string {
-	return "tenants"
+	return EntityTenants
 }

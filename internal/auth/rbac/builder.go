@@ -12,7 +12,10 @@ import (
 // setter method.
 var ErrMissingRoleData = errors.New("missing role data")
 
-type roleCreator interface {
+// RoleCreator implements role creation.
+//
+// MUST be safe for concurrent use.
+type RoleCreator interface {
 	// CreateRole creates a role with the given data and accesses and return its IDs.
 	CreateRole(ctx context.Context, data *RoleData, accesses ...AccessData) (id uuid.UUID, err error)
 }
@@ -31,7 +34,7 @@ type roleCreator interface {
 //	  Build(ctx)
 type Builder struct {
 	// repo is used to create built role with [Builder.Build].
-	repo roleCreator
+	repo RoleCreator
 
 	// roleOn is the final role resource, using a pointer to check nil resource easier.
 	roleOn *Resource
@@ -57,7 +60,7 @@ type Builder struct {
 }
 
 // RoleBuilder creates a new [Builder].
-func RoleBuilder(repo roleCreator) *Builder {
+func RoleBuilder(repo RoleCreator) *Builder {
 	return &Builder{
 		accesses:             make(map[string]*AccessData, 8),
 		temporaryPermissions: make([]Perm, 0, 10),
