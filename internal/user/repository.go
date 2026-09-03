@@ -6,9 +6,10 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
-	"github.com/kytnacode/inventure/passhash"
 	"gorm.io/gorm"
 )
+
+var _ userRepo = &Repository{}
 
 var (
 	// ErrUserNotFound is returned when the user with the given credentials could not be found.
@@ -22,35 +23,16 @@ var (
 	ErrWrongCredentials = errors.New("wrong email or password")
 )
 
-// Claims are authentication claims of a user.
-type Claims struct {
-	// ID is user's unique ID.
-	ID string
-
-	// RoleIDs are the IDs of the roles the user belongs, can be empty, but never nil.
-	RoleIDs []string
-}
-
-// SignUpData is the necessary data to create a new user with password based authentication
-// using [Repository.SignUp]. For validation rules see [repository.User].
-type SignUpData struct {
-	// Name is user display name.
+// Data is the necessary data to create a user.
+type Data struct {
+	// Name is the new user's name.
 	Name string
 
-	// Email is user email.
+	// Email is the new user's email.
 	Email string
 
-	// PasswordHash is a PHC formatted argon2id hash.
-	PasswordHash string
-}
-
-// SignInData is the necessary data for a user to sign in.
-type SignInData struct {
-	// Email is user email.
-	Email string
-
-	// ClearPassword is the password in clear text.
-	ClearPassword string
+	// PasswordHash is new user's password hash, nil for non password-based authentication users.
+	PasswordHash *string
 }
 
 // Repository handles user related business logic.
@@ -65,63 +47,37 @@ func NewRepository(db *gorm.DB) *Repository {
 	}
 }
 
-// SignUp creates a new user with password based authentication.
-func (r *Repository) SignUp(ctx context.Context, data *SignUpData) (userData *Claims, err error) {
+// CreateUser creates a new user with the given data. Returns [ErrDuplicatedUser] if the email
+// is already registered.
+func (r *Repository) CreateUser(ctx context.Context, data *Data) (id uuid.UUID, err error) {
 	m := &Model{
 		ID:           uuid.New(),
 		Name:         data.Name,
 		Email:        data.Email,
-		PasswordHash: &data.PasswordHash,
+		PasswordHash: data.PasswordHash,
 	}
 
 	err = r.db.WithContext(ctx).Create(m).Error
 	if err != nil {
-		return nil, fmt.Errorf("could not create user: %w", err)
+		return uuid.UUID{}, fmt.Errorf("could not create user: %w", err)
 	}
 
-	userData = &Claims{
-		ID:      m.ID.String(),
-		RoleIDs: make([]string, 0),
-	}
-
-	return userData, nil
+	return m.ID, nil
 }
 
-// SignIn search for a user by the given data and verifies its credentials, if credentials
-// are valid and no error occurs, then its id is returned.
-//
-// If the user cannot be found, [ErrUserNotFound] is returned, if user account doesn't support
-// password-based authentication, [ErrNotPasswordAuth] is returned, at last, if user was found
-// but their credentials don't match, [ErrWrongCredentials] is returned.
-func (r *Repository) SignIn(ctx context.Context, data *SignInData) (userData *Claims, err error) {
-	var u Model
+// UserByEmail returns a user by its email address, returns [ErrUserNotFound] if user with the
+// given email could not be found.
+func (r *Repository) UserByEmail(ctx context.Context, email string) (u *User, err error) {
+	var m Model
 
-	err = r.db.WithContext(ctx).Where("email = ?", data.Email).Take(&u).Error
+	err = r.db.WithContext(ctx).Where("email = ?", email).Take(&m).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, fmt.Errorf("user not exists: %w", errors.Join(err, ErrUserNotFound))
+	}
+
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, ErrUserNotFound
-		}
-
-		return nil, fmt.Errorf("user query failed: %w", err)
+		return nil, fmt.Errorf("could not get user: %w", err)
 	}
 
-	if u.PasswordHash == nil {
-		return nil, ErrNotPasswordAuth
-	}
-
-	ok, err := passhash.Verify(*u.PasswordHash, []byte(data.ClearPassword))
-	if err != nil {
-		return nil, fmt.Errorf("could not authenticate user: %w", err)
-	}
-
-	if !ok {
-		return nil, ErrWrongCredentials
-	}
-
-	userData = &Claims{
-		ID:      u.ID.String(),
-		RoleIDs: make([]string, 0),
-	}
-
-	return userData, nil
+	return m.ToDomain(), nil
 }

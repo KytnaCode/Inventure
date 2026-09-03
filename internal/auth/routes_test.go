@@ -10,6 +10,7 @@ import (
 
 	"github.com/alexedwards/scs/v2"
 	"github.com/alexedwards/scs/v2/memstore"
+	"github.com/google/uuid"
 	"github.com/kytnacode/inventure/api"
 	"github.com/kytnacode/inventure/internal/auth"
 	"github.com/kytnacode/inventure/internal/testutil"
@@ -45,7 +46,7 @@ func newRoutes(t *testing.T) (
 		t.Fatalf("could not migrate test database: %v", err)
 	}
 
-	userRepo := user.NewRepository(db)
+	userService := user.NewService(user.NewRepository(db))
 
 	session := *sessionManager
 
@@ -54,9 +55,9 @@ func newRoutes(t *testing.T) (
 		SessionManager:        sessionManager,
 		RequestLimit:          10,
 		TimeWindow:            time.Minute,
-		UserRepo:              userRepo,
 		LoginAttemptLimit:     5,
 		LoginAttempTimeWindow: time.Minute,
+		UserService:           userService,
 	}
 
 	return auth.NewRoutes(conf), db, &session
@@ -310,6 +311,7 @@ func TestRoutes_SignInShouldReturnWrongCredentialsError(t *testing.T) {
 	otherPass := passhash.Hash([]byte("other-password"))
 
 	u := &user.Model{
+		ID:           uuid.New(),
 		Email:        userEmail,
 		PasswordHash: &otherPass,
 	}
