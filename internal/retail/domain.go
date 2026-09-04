@@ -36,6 +36,21 @@ type Item struct {
 	PlaceID string `validate:"required"`
 }
 
+// StockItem represents the placement of an item type in a storage place.
+type StockItem struct {
+	// ID is item's unique ID.
+	ID uuid.UUID
+
+	// Typ is the item type, must point to an [Item].
+	Typ uuid.UUID
+
+	// Stock are the quantity of that item type in this storage place.
+	Stock int
+
+	// PlaceID is the ID of the place where these stock items are stored.
+	PlaceID uuid.UUID
+}
+
 // Retail is a physic or logic sell point that manage users and storage.
 type Retail struct {
 	// ID is retail's unique ID.
