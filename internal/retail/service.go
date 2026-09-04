@@ -11,8 +11,13 @@ import (
 	"gorm.io/gorm"
 )
 
-// MasterRoleName is the name of the tenant master role.
-const MasterRoleName = "master"
+const (
+	// MasterRoleName is the name of the tenant master role.
+	MasterRoleName = "master"
+
+	// DefaultStorageName is the default name for retail's root place.
+	DefaultStorageName = "Storage"
+)
 
 // ServiceAdapters contains transaction-scoped repositories used by [Service].
 type ServiceAdapters struct {
@@ -57,17 +62,23 @@ type roleAssignator interface {
 	AssingRoles(ctx context.Context, userID uuid.UUID, roleIDs ...uuid.UUID) error
 }
 
+type repository interface {
+	CreateRetail(ctx context.Context, data *Data) (uuid.UUID, error)
+}
+
 // Service handles high-level domain logic for tenants.
 //
 // Safe for concurrent use.
 type Service struct {
 	provider ServiceProvider
+	repo     repository
 }
 
 // NewService creates a new [Service].
-func NewService(provider ServiceProvider) *Service {
+func NewService(provider ServiceProvider, repo repository) *Service {
 	return &Service{
 		provider: provider,
+		repo:     repo,
 	}
 }
 
@@ -115,4 +126,19 @@ func (s *Service) CreateDefaultTenant(
 	}
 
 	return id, nil
+}
+
+// CreateEmptyRetail creates a new empty retail with an empty root storage on the given tenant.
+func (s *Service) CreateEmptyRetail(
+	ctx context.Context,
+	name string,
+	tenantID uuid.UUID,
+) (uuid.UUID, error) {
+	return s.repo.CreateRetail(ctx, &Data{
+		Name:     name,
+		TenantID: tenantID,
+		Storage: &PlaceData{
+			Name: DefaultStorageName,
+		},
+	})
 }

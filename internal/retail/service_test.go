@@ -15,6 +15,7 @@ import (
 type testTenantRepo struct {
 	tenantID uuid.UUID
 	err      error
+	retailID uuid.UUID
 }
 
 func (r *testTenantRepo) CreateFullTenant(
@@ -28,6 +29,14 @@ func (r *testTenantRepo) CreateFullTenant(
 	}
 
 	return r.tenantID, nil
+}
+
+func (r *testTenantRepo) CreateRetail(_ context.Context, _ *retail.Data) (uuid.UUID, error) {
+	if r.err != nil {
+		return uuid.UUID{}, r.err
+	}
+
+	return r.retailID, nil
 }
 
 type testRoleCreator struct {
@@ -67,7 +76,7 @@ func newService(
 		}
 	})
 
-	return retail.NewService(provider)
+	return retail.NewService(provider, repo)
 }
 
 func TestService_CreateDefaultTenantShouldCreateTenant(t *testing.T) {
@@ -179,5 +188,48 @@ func TestService_CreateDefaultTenantShouldWrapRoleRepositoryError(t *testing.T) 
 
 	if !errors.Is(err, ErrExpected) {
 		t.Errorf("expected error to wrap repository error: got '%v'", err)
+	}
+}
+
+func TestService_CreateEmptyRetailShouldNotReturnError(t *testing.T) {
+	t.Parallel()
+
+	expectedID := uuid.New()
+
+	service := newService(&testTenantRepo{
+		retailID: expectedID,
+	}, &roleAssignator{}, &testRoleCreator{})
+
+	gotID, err := service.CreateEmptyRetail(t.Context(), "My retail", uuid.New())
+	if err != nil {
+		t.Fatalf("expected a nil error: %v", err)
+	}
+
+	if gotID.String() != expectedID.String() {
+		t.Errorf("expected ID to be '%v': got '%v'", expectedID, gotID)
+	}
+}
+
+func TestService_CreateEmptyRetailShouldWrapRepositoryError(t *testing.T) {
+	t.Parallel()
+
+	ErrExpected := errors.New("expected")
+
+	service := newService(&testTenantRepo{
+		err: ErrExpected,
+	}, &roleAssignator{}, &testRoleCreator{})
+
+	gotID, err := service.CreateEmptyRetail(t.Context(), "My retail", uuid.New())
+
+	if gotID.String() != (uuid.UUID{}).String() {
+		t.Errorf("expected returned ID to be the zero ID: got '%v'", gotID)
+	}
+
+	if err == nil {
+		t.Fatal("expected a non-nil error")
+	}
+
+	if !errors.Is(err, ErrExpected) {
+		t.Errorf("expected error to be '%v': got '%v'", ErrExpected, err)
 	}
 }
