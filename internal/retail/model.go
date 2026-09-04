@@ -11,7 +11,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// ItemModel is the database representation of an item.
+// ItemModel is the database representation of an item type.
 type ItemModel struct {
 	// ID is item's unique ID.
 	ID uuid.UUID `gorm:"primaryKey"`
@@ -21,9 +21,6 @@ type ItemModel struct {
 
 	// Desc is item's description.
 	Desc string
-
-	// Stock is item's available stock.
-	Stock int
 
 	// Attrs a per-item custom attributes.
 	Attrs datatypes.JSONMap
@@ -63,7 +60,6 @@ func NewItemModel(data *ItemData) *ItemModel {
 		ID:    uuid.New(),
 		Name:  data.Name,
 		Desc:  data.Desc,
-		Stock: data.Stock,
 		Attrs: data.Attrs,
 	}
 
@@ -76,7 +72,6 @@ func (m *ItemModel) ToDomain() *Item {
 		ID:      m.ID.String(),
 		Name:    m.Name,
 		Desc:    m.Desc,
-		Stock:   m.Stock,
 		Attrs:   m.Attrs,
 		PlaceID: m.PlaceID.String(),
 	}
