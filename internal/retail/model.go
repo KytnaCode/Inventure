@@ -37,6 +37,26 @@ func (m *ItemModel) TableName() string {
 	return EntityItems
 }
 
+// StockItemModel is the database representation of a stock item.
+type StockItemModel struct {
+	// ID is the stock item's unique ID.
+	ID uuid.UUID
+
+	// Typ is the ID of the item stored.
+	Typ uuid.UUID
+
+	// Stock is the amount of items stored in this location.
+	Stock int
+
+	// PlaceID is the ID of the place where these items are stored.
+	PlaceID uuid.UUID
+}
+
+// TableName returns stock items table name. Implements [gorm/schema.Tabler].
+func (m *StockItemModel) TableName() string {
+	return EntityStockItems
+}
+
 // NewItemModel validates data and returns a new [ItemModel].
 func NewItemModel(data *ItemData) *ItemModel {
 	m := &ItemModel{
