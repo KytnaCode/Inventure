@@ -127,6 +127,24 @@ func (r *Repository) CreateFullTenant(
 	return id, nil
 }
 
+// CreateRetail creates a new retail.
+func (r *Repository) CreateRetail(
+	ctx context.Context,
+	data *Data,
+) (uuid.UUID, error) {
+	m, err := r.createRetail(r.db.WithContext(ctx), data)
+	if err != nil {
+		return uuid.UUID{}, err
+	}
+
+	err = r.db.WithContext(ctx).Create(m).Error
+	if err != nil {
+		return uuid.UUID{}, fmt.Errorf("could not insert model: %w", err)
+	}
+
+	return m.ID, nil
+}
+
 func dataFromRetailData(retailData []Data, tenantID uuid.UUID) []Data {
 	data := make([]Data, 0, len(retailData))
 
@@ -151,27 +169,36 @@ func itemModelToDomain(models []ItemModel) []Item {
 	return items
 }
 
+func (r *Repository) createRetail(tx *gorm.DB, data *Data) (*Model, error) {
+	m := Model{
+		ID:       uuid.New(),
+		Name:     data.Name,
+		TenantID: data.TenantID,
+	}
+
+	storage := data.Storage
+	if storage == nil {
+		storage = &PlaceData{
+			Name: "Storage",
+		}
+	}
+
+	err := r.createPlace(tx, m.ID, storage, "/")
+	if err != nil {
+		return nil, fmt.Errorf("could not create retail: %w", err)
+	}
+
+	return &m, nil
+}
+
 // createRetailsList creates a list of retails and returns its IDs.
 func (r *Repository) createRetailsList(tx *gorm.DB, data []Data) ([]uuid.UUID, error) {
-	models := make([]Model, 0, len(data))
+	models := make([]*Model, 0, len(data))
 
 	for _, retailData := range data {
-		m := Model{
-			ID:       uuid.New(),
-			Name:     retailData.Name,
-			TenantID: retailData.TenantID,
-		}
-
-		storage := retailData.Storage
-		if storage == nil {
-			storage = &PlaceData{
-				Name: "Storage",
-			}
-		}
-
-		err := r.createPlace(tx, m.ID, storage, "/")
+		m, err := r.createRetail(tx, &retailData)
 		if err != nil {
-			return nil, fmt.Errorf("could not create retail: %w", err)
+			return nil, err
 		}
 
 		models = append(models, m)
