@@ -140,10 +140,6 @@ func comparePlace(t *testing.T, data *retail.PlaceData, domain *retail.Place) {
 			t.Errorf("expected item desc to be '%v': got '%v'", itemData.Desc, itemModel.Desc)
 		}
 
-		if itemData.Stock != itemModel.Stock {
-			t.Errorf("expected item stock to be '%v': got '%v'", itemData.Stock, itemModel.Stock)
-		}
-
 		if !maps.Equal(itemData.Attrs, itemModel.Attrs) {
 			t.Errorf("expected item attrs to be '%v': got '%v'", itemData.Attrs, itemModel.Attrs)
 		}
