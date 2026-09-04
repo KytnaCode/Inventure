@@ -83,6 +83,42 @@ func (r *Repository) UserByEmail(ctx context.Context, email string) (u *User, er
 	return m.ToDomain(), nil
 }
 
+// UpdateByEmail updates a user by email. The updateFn function takes a user model with the user
+// data, changes made to the given user will be uploaded to the database. Atomically fetches and
+// updates user.
+func (r *Repository) UpdateByEmail(
+	ctx context.Context,
+	email string,
+	updateFn func(u *Model) error,
+) error {
+	var u Model
+
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		err := tx.Model(&Model{}).
+			Where("email = ?", email).
+			Take(&u).Error
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return fmt.Errorf("user not exists: %w", errors.Join(err, ErrUserNotFound))
+		}
+
+		if err != nil {
+			return err
+		}
+
+		err = updateFn(&u)
+		if err != nil {
+			return err
+		}
+
+		return tx.Model(u).Updates(u).Error
+	})
+	if err != nil {
+		return fmt.Errorf("could not update user: %w", err)
+	}
+
+	return nil
+}
+
 // AssingRoles roles assign the roles with the given IDs to the user with the given ID.
 func (r *Repository) AssingRoles(
 	ctx context.Context,
