@@ -462,3 +462,53 @@ func TestRepository_CreateFullTenantShouldCreateATenantWithRetails(t *testing.T)
 
 	compareUsers(t, got.Users, []user.Model{})
 }
+
+func TestRepository_CreateRetailShouldCreateRetail(t *testing.T) {
+	t.Parallel()
+
+	repo, db := newRepo(t)
+
+	id, err := repo.CreateFullTenant(t.Context(), &retail.TenantData{
+		Name: "tenant",
+	}, []retail.Data{}, []uuid.UUID{})
+	if err != nil {
+		t.Fatalf("could not create test tenant: %v", err)
+	}
+
+	data := &retail.Data{
+		Name: "My retail",
+		Storage: &retail.PlaceData{
+			Name: "Storage",
+		},
+		TenantID: id,
+	}
+
+	retailID, err := repo.CreateRetail(t.Context(), data)
+	if err != nil {
+		t.Fatalf("could not create retail: %v", err)
+	}
+
+	var got retail.Model
+
+	err = db.WithContext(t.Context()).Where("id = ?", retailID).Take(&got).Error
+	if err != nil {
+		t.Fatalf("could not get inserted user: %v", err)
+	}
+
+	if got.Name != data.Name {
+		t.Errorf("expected retail name to be '%v': got '%v'", data.Name, got.Name)
+	}
+
+	if got.TenantID.String() != data.TenantID.String() {
+		t.Errorf("expected retail's tenant ID to be '%v': got '%v'", data.TenantID, got.TenantID)
+	}
+
+	storage, err := repo.GetRetailStorage(db, retailID)
+	if err != nil {
+		t.Errorf("could not get retail storage: %v", err)
+	}
+
+	if data.Storage.Name != storage.Name {
+		t.Errorf("expected place name to be '%v': got '%v'", storage.Name, data.Name)
+	}
+}
