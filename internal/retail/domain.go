@@ -9,10 +9,11 @@ import (
 
 // Entity reference and table names.
 const (
-	EntityItems   = "items"
-	EntityRetails = "retails"
-	EntityTenants = "tenants"
-	EntityPlaces  = "places"
+	EntityItems      = "items"
+	EntityStockItems = "stock_items"
+	EntityRetails    = "retails"
+	EntityTenants    = "tenants"
+	EntityPlaces     = "places"
 )
 
 // Item represents a retail's item.
