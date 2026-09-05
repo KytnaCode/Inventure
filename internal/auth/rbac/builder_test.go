@@ -10,6 +10,9 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/kytnacode/inventure/internal/auth/rbac"
+	"github.com/kytnacode/inventure/internal/testutil"
+	"github.com/kytnacode/inventure/internal/testutil/dbtest"
+	"gorm.io/gorm"
 )
 
 type testRepository struct {
@@ -160,241 +163,257 @@ func TestBuilderShouldCreateRoleWithRemovedPermissions(t *testing.T) {
 }
 
 func TestBuilderRepositorySqlite3ShouldCreateRoleWithoutPermissions(t *testing.T) {
+	testutil.Integration(t)
+
 	t.Parallel()
 
-	repo, _ := newRepo(t)
+	dbtest.RunWithDatabases(t, runMigrations, func(t *testing.T, db *gorm.DB) {
+		repo := newRepo(db)
 
-	res := rbac.NewResource("tenant", uuid.New(), nil)
+		res := rbac.NewResource("tenant", uuid.New(), nil)
 
-	const (
-		expectedName        = "admin"
-		expectedAccessesNum = 0
-	)
+		const (
+			expectedName        = "admin"
+			expectedAccessesNum = 0
+		)
 
-	id, err := rbac.RoleBuilder(repo).
-		Name(expectedName).
-		BelongsTo(res).
-		Build(t.Context())
-	if err != nil {
-		t.Error("expected a nil error")
-	}
+		id, err := rbac.RoleBuilder(repo).
+			Name(expectedName).
+			BelongsTo(res).
+			Build(t.Context())
+		if err != nil {
+			t.Error("expected a nil error")
+		}
 
-	if id.String() == (uuid.UUID{}).String() {
-		t.Error("expected id to be not empty")
-	}
+		if id.String() == (uuid.UUID{}).String() {
+			t.Error("expected id to be not empty")
+		}
 
-	roles, err := repo.GetRoles(t.Context(), id)
-	if err != nil {
-		t.Fatalf("could not get inserted roles: %v", err)
-	}
+		roles, err := repo.GetRoles(t.Context(), id)
+		if err != nil {
+			t.Fatalf("could not get inserted roles: %v", err)
+		}
 
-	if len(roles) != 1 {
-		t.Fatalf("expected only one role: got %v roles", len(roles))
-	}
+		if len(roles) != 1 {
+			t.Fatalf("expected only one role: got %v roles", len(roles))
+		}
 
-	got := roles[0]
+		got := roles[0]
 
-	if got.Name != expectedName {
-		t.Errorf("expected role name to be '%v': got '%v'", expectedName, got.Name)
-	}
+		if got.Name != expectedName {
+			t.Errorf("expected role name to be '%v': got '%v'", expectedName, got.Name)
+		}
 
-	if !got.On.Equal(res) {
-		t.Errorf("expected role resource to be '%v': got '%v'", res, got.On)
-	}
+		if !got.On.Equal(res) {
+			t.Errorf("expected role resource to be '%v': got '%v'", res, got.On)
+		}
 
-	if len(got.Accesses) != expectedAccessesNum {
-		t.Errorf("expected to have %v accesses: got %v", expectedAccessesNum, len(got.Accesses))
-	}
+		if len(got.Accesses) != expectedAccessesNum {
+			t.Errorf("expected to have %v accesses: got %v", expectedAccessesNum, len(got.Accesses))
+		}
+	})
 }
 
 func TestBuilderRepositorySqlite3ShouldCreateRoleWithPermissions(t *testing.T) {
+	testutil.Integration(t)
+
 	t.Parallel()
 
-	repo, _ := newRepo(t)
+	dbtest.RunWithDatabases(t, runMigrations, func(t *testing.T, db *gorm.DB) {
+		t.Parallel()
 
-	res := rbac.NewResource("tenant", uuid.New(), nil)
-	merchant1 := rbac.NewResource("retail", uuid.New(), nil)
-	merchant2 := rbac.NewResource("retail", uuid.New(), nil)
+		repo := newRepo(db)
 
-	const (
-		expectedName        = "admin"
-		expectedAccessesNum = 3
-	)
+		res := rbac.NewResource("tenant", uuid.New(), nil)
+		merchant1 := rbac.NewResource("retail", uuid.New(), nil)
+		merchant2 := rbac.NewResource("retail", uuid.New(), nil)
 
-	var (
-		expectedTenantPerms    = []rbac.Perm{"tenant-mod", "tenant-del", "user-add"}
-		expectedMerchant1Perms = []rbac.Perm{"item-read"}
-		expectedMerchant2Perms = []rbac.Perm{"item-read", "item-del", "item-add"}
-		expectedAcceses        = []rbac.Access{
-			{
-				On:    res,
-				Perms: expectedTenantPerms,
-			},
-			{
-				On:    merchant1,
-				Perms: expectedMerchant1Perms,
-			},
-			{
-				On:    merchant2,
-				Perms: expectedMerchant2Perms,
-			},
-		}
-	)
+		const (
+			expectedName        = "admin"
+			expectedAccessesNum = 3
+		)
 
-	id, err := rbac.RoleBuilder(repo).
-		Name(expectedName).
-		BelongsTo(res).
-		On(res).Allow(expectedTenantPerms[0]).Allow(expectedTenantPerms[1:]...).
-		On(merchant1).Allow(expectedMerchant1Perms...).
-		On(merchant2).Allow(expectedMerchant2Perms...).
-		Build(t.Context())
-	if err != nil {
-		t.Error("expected a nil error")
-	}
+		var (
+			expectedTenantPerms    = []rbac.Perm{"tenant-mod", "tenant-del", "user-add"}
+			expectedMerchant1Perms = []rbac.Perm{"item-read"}
+			expectedMerchant2Perms = []rbac.Perm{"item-read", "item-del", "item-add"}
+			expectedAcceses        = []rbac.Access{
+				{
+					On:    res,
+					Perms: expectedTenantPerms,
+				},
+				{
+					On:    merchant1,
+					Perms: expectedMerchant1Perms,
+				},
+				{
+					On:    merchant2,
+					Perms: expectedMerchant2Perms,
+				},
+			}
+		)
 
-	if id.String() == (uuid.UUID{}).String() {
-		t.Error("expected id to be not empty")
-	}
-
-	roles, err := repo.GetRoles(t.Context(), id)
-	if err != nil {
-		t.Fatalf("could not get inserted roles: %v", err)
-	}
-
-	if len(roles) != 1 {
-		t.Fatalf("expected only one role: got %v roles", len(roles))
-	}
-
-	got := roles[0]
-
-	if got.Name != expectedName {
-		t.Errorf("expected role name to be '%v': got '%v'", expectedName, got.Name)
-	}
-
-	if !got.On.Equal(res) {
-		t.Errorf("expected role resource to be '%v': got '%v'", res, got.On)
-	}
-
-	if len(got.Accesses) != expectedAccessesNum {
-		t.Errorf("expected to have %v accesses: got %v", expectedAccessesNum, len(got.Accesses))
-	}
-
-	sortByPerms := func(a, b rbac.Access) int {
-		return cmp.Compare(joinPerms(a.Perms), joinPerms(b.Perms))
-	}
-
-	slices.SortFunc(got.Accesses, sortByPerms)
-	slices.SortFunc(expectedAcceses, sortByPerms)
-
-	for i, gotAccess := range got.Accesses {
-		expected := expectedAcceses[i]
-
-		if !gotAccess.On.Equal(expected.On) {
-			t.Errorf("expected access resource to be '%v': got '%v'", &expected.On, &gotAccess.On)
+		id, err := rbac.RoleBuilder(repo).
+			Name(expectedName).
+			BelongsTo(res).
+			On(res).Allow(expectedTenantPerms[0]).Allow(expectedTenantPerms[1:]...).
+			On(merchant1).Allow(expectedMerchant1Perms...).
+			On(merchant2).Allow(expectedMerchant2Perms...).
+			Build(t.Context())
+		if err != nil {
+			t.Error("expected a nil error")
 		}
 
-		slices.Sort(gotAccess.Perms)
-		slices.Sort(expected.Perms)
-
-		if !slices.Equal(gotAccess.Perms, expected.Perms) {
-			t.Errorf("expected accesses to be '%v': got '%v'", expected.Perms, gotAccess.Perms)
+		if id.String() == (uuid.UUID{}).String() {
+			t.Error("expected id to be not empty")
 		}
-	}
+
+		roles, err := repo.GetRoles(t.Context(), id)
+		if err != nil {
+			t.Fatalf("could not get inserted roles: %v", err)
+		}
+
+		if len(roles) != 1 {
+			t.Fatalf("expected only one role: got %v roles", len(roles))
+		}
+
+		got := roles[0]
+
+		if got.Name != expectedName {
+			t.Errorf("expected role name to be '%v': got '%v'", expectedName, got.Name)
+		}
+
+		if !got.On.Equal(res) {
+			t.Errorf("expected role resource to be '%v': got '%v'", res, got.On)
+		}
+
+		if len(got.Accesses) != expectedAccessesNum {
+			t.Errorf("expected to have %v accesses: got %v", expectedAccessesNum, len(got.Accesses))
+		}
+
+		sortByPerms := func(a, b rbac.Access) int {
+			return cmp.Compare(joinPerms(a.Perms), joinPerms(b.Perms))
+		}
+
+		slices.SortFunc(got.Accesses, sortByPerms)
+		slices.SortFunc(expectedAcceses, sortByPerms)
+
+		for i, gotAccess := range got.Accesses {
+			expected := expectedAcceses[i]
+
+			if !gotAccess.On.Equal(expected.On) {
+				t.Errorf("expected access resource to be '%v': got '%v'", &expected.On, &gotAccess.On)
+			}
+
+			slices.Sort(gotAccess.Perms)
+			slices.Sort(expected.Perms)
+
+			if !slices.Equal(gotAccess.Perms, expected.Perms) {
+				t.Errorf("expected accesses to be '%v': got '%v'", expected.Perms, gotAccess.Perms)
+			}
+		}
+	})
 }
 
 func TestBuilderRepositorySqlite3ShouldCreateRoleWithRemovedPermissions(t *testing.T) {
+	testutil.Integration(t)
+
 	t.Parallel()
 
-	repo, _ := newRepo(t)
+	dbtest.RunWithDatabases(t, runMigrations, func(t *testing.T, db *gorm.DB) {
+		t.Parallel()
 
-	res := rbac.NewResource("tenant", uuid.New(), nil)
-	merchant1 := rbac.NewResource("retail", uuid.New(), nil)
-	merchant2 := rbac.NewResource("retail", uuid.New(), nil)
+		repo := newRepo(db)
 
-	const (
-		expectedName        = "admin"
-		expectedAccessesNum = 2
-	)
+		res := rbac.NewResource("tenant", uuid.New(), nil)
+		merchant1 := rbac.NewResource("retail", uuid.New(), nil)
+		merchant2 := rbac.NewResource("retail", uuid.New(), nil)
 
-	var (
-		expectedTenantPerms = []rbac.Perm{"tenant-mod", "tenant-del", "user-add"}
-		// expectedMerchant1Perms = []rbac.Perm{"item-read"}
-		expectedMerchant2Perms = []rbac.Perm{"item-read", "item-del", "item-add"}
-		expectedAcceses        = []rbac.Access{
-			{
-				On:    res,
-				Perms: expectedTenantPerms,
-			},
-			// Removed.
-			// {
-			// 	On: merchant1,
-			// 	Perms: expectedMerchant1Perms,
-			// },
-			{
-				On:    merchant2,
-				Perms: expectedMerchant2Perms,
-			},
-		}
-	)
+		const (
+			expectedName        = "admin"
+			expectedAccessesNum = 2
+		)
 
-	id, err := rbac.RoleBuilder(repo).
-		Name("admin").
-		BelongsTo(res).
-		On(res).Allow(expectedTenantPerms[0]).Allow(expectedTenantPerms[1:]...).
-		On(merchant1).Allow("item-read").
-		On(merchant2).Allow(expectedMerchant2Perms...).
-		Remove(merchant1).
-		Build(t.Context())
-	if err != nil {
-		t.Error("expected a nil error")
-	}
+		var (
+			expectedTenantPerms = []rbac.Perm{"tenant-mod", "tenant-del", "user-add"}
+			// expectedMerchant1Perms = []rbac.Perm{"item-read"}
+			expectedMerchant2Perms = []rbac.Perm{"item-read", "item-del", "item-add"}
+			expectedAcceses        = []rbac.Access{
+				{
+					On:    res,
+					Perms: expectedTenantPerms,
+				},
+				// Removed.
+				// {
+				// 	On: merchant1,
+				// 	Perms: expectedMerchant1Perms,
+				// },
+				{
+					On:    merchant2,
+					Perms: expectedMerchant2Perms,
+				},
+			}
+		)
 
-	if id.String() == (uuid.UUID{}).String() {
-		t.Error("expected id to be not empty")
-	}
-
-	roles, err := repo.GetRoles(t.Context(), id)
-	if err != nil {
-		t.Fatalf("could not get inserted roles: %v", err)
-	}
-
-	if len(roles) != 1 {
-		t.Fatalf("expected only one role: got %v roles", len(roles))
-	}
-
-	got := roles[0]
-
-	if got.Name != expectedName {
-		t.Errorf("expected role name to be '%v': got '%v'", expectedName, got.Name)
-	}
-
-	if !got.On.Equal(res) {
-		t.Errorf("expected role resource to be '%v': got '%v'", res, got.On)
-	}
-
-	if len(got.Accesses) != expectedAccessesNum {
-		t.Errorf("expected to have %v accesses: got %v", expectedAccessesNum, len(got.Accesses))
-	}
-
-	sortByPerms := func(a, b rbac.Access) int {
-		return cmp.Compare(joinPerms(a.Perms), joinPerms(b.Perms))
-	}
-
-	slices.SortFunc(got.Accesses, sortByPerms)
-	slices.SortFunc(expectedAcceses, sortByPerms)
-
-	for i, gotAccess := range got.Accesses {
-		expected := expectedAcceses[i]
-
-		if !gotAccess.On.Equal(expected.On) {
-			t.Errorf("expected access resource to be '%v': got '%v'", &expected.On, &gotAccess.On)
+		id, err := rbac.RoleBuilder(repo).
+			Name("admin").
+			BelongsTo(res).
+			On(res).Allow(expectedTenantPerms[0]).Allow(expectedTenantPerms[1:]...).
+			On(merchant1).Allow("item-read").
+			On(merchant2).Allow(expectedMerchant2Perms...).
+			Remove(merchant1).
+			Build(t.Context())
+		if err != nil {
+			t.Error("expected a nil error")
 		}
 
-		slices.Sort(gotAccess.Perms)
-		slices.Sort(expected.Perms)
-
-		if !slices.Equal(gotAccess.Perms, expected.Perms) {
-			t.Errorf("expected accesses to be '%v': got '%v'", expected.Perms, gotAccess.Perms)
+		if id.String() == (uuid.UUID{}).String() {
+			t.Error("expected id to be not empty")
 		}
-	}
+
+		roles, err := repo.GetRoles(t.Context(), id)
+		if err != nil {
+			t.Fatalf("could not get inserted roles: %v", err)
+		}
+
+		if len(roles) != 1 {
+			t.Fatalf("expected only one role: got %v roles", len(roles))
+		}
+
+		got := roles[0]
+
+		if got.Name != expectedName {
+			t.Errorf("expected role name to be '%v': got '%v'", expectedName, got.Name)
+		}
+
+		if !got.On.Equal(res) {
+			t.Errorf("expected role resource to be '%v': got '%v'", res, got.On)
+		}
+
+		if len(got.Accesses) != expectedAccessesNum {
+			t.Errorf("expected to have %v accesses: got %v", expectedAccessesNum, len(got.Accesses))
+		}
+
+		sortByPerms := func(a, b rbac.Access) int {
+			return cmp.Compare(joinPerms(a.Perms), joinPerms(b.Perms))
+		}
+
+		slices.SortFunc(got.Accesses, sortByPerms)
+		slices.SortFunc(expectedAcceses, sortByPerms)
+
+		for i, gotAccess := range got.Accesses {
+			expected := expectedAcceses[i]
+
+			if !gotAccess.On.Equal(expected.On) {
+				t.Errorf("expected access resource to be '%v': got '%v'", &expected.On, &gotAccess.On)
+			}
+
+			slices.Sort(gotAccess.Perms)
+			slices.Sort(expected.Perms)
+
+			if !slices.Equal(gotAccess.Perms, expected.Perms) {
+				t.Errorf("expected accesses to be '%v': got '%v'", expected.Perms, gotAccess.Perms)
+			}
+		}
+	})
 }
