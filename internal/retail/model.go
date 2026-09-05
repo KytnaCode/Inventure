@@ -34,13 +34,27 @@ func (m *ItemModel) TableName() string {
 	return EntityItems
 }
 
+// NewItemModel validates data and returns a new [ItemModel].
+func NewItemModel(data *ItemData) *ItemModel {
+	m := &ItemModel{
+		ID:    uuid.New(),
+		Name:  data.Name,
+		Desc:  data.Desc,
+		Attrs: data.Attrs,
+	}
+
+	return m
+}
+
 // StockItemModel is the database representation of a stock item.
 type StockItemModel struct {
 	// ID is the stock item's unique ID.
 	ID uuid.UUID
 
-	// Typ is the ID of the item stored.
-	Typ uuid.UUID
+	// Data is the data of the item stored.
+	Data ItemModel
+
+	DataID uuid.UUID
 
 	// Stock is the amount of items stored in this location.
 	Stock int
@@ -54,13 +68,23 @@ func (m *StockItemModel) TableName() string {
 	return EntityStockItems
 }
 
-// NewItemModel validates data and returns a new [ItemModel].
-func NewItemModel(data *ItemData) *ItemModel {
-	m := &ItemModel{
-		ID:    uuid.New(),
-		Name:  data.Name,
-		Desc:  data.Desc,
-		Attrs: data.Attrs,
+// ToDomain converts a [StockItemModel] into a [StockItem] domain object.
+func (m *StockItemModel) ToDomain() *StockItem {
+	return &StockItem{
+		ID:      m.ID,
+		Data:    *m.Data.ToDomain(),
+		Stock:   m.Stock,
+		PlaceID: m.PlaceID,
+	}
+}
+
+// NewStockItemModel validates data and returns a new [StockItemModel].
+func NewStockItemModel(data *StockItemData) *StockItemModel {
+	m := &StockItemModel{
+		ID:      uuid.New(),
+		PlaceID: data.PlaceID,
+		Stock:   data.Stock,
+		DataID:  data.Data.ID,
 	}
 
 	return m
@@ -69,7 +93,7 @@ func NewItemModel(data *ItemData) *ItemModel {
 // ToDomain converts an [ItemModel] into an [Item].
 func (m *ItemModel) ToDomain() *Item {
 	return &Item{
-		ID:      m.ID.String(),
+		ID:      m.ID,
 		Name:    m.Name,
 		Desc:    m.Desc,
 		Attrs:   m.Attrs,
@@ -112,7 +136,7 @@ type PlaceModel struct {
 	RetailID uuid.UUID `gorm:"uniqueIndex:idx_name"`
 
 	// Items are the items that reside directly on this place.
-	Items []ItemModel `gorm:"foreignKey:PlaceID"`
+	Items []StockItemModel `gorm:"foreignKey:PlaceID"`
 }
 
 // TableName returns place's table name. Implements [gorm/schema.Tabler].
