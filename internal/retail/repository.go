@@ -94,30 +94,10 @@ func (r *Repository) CreateFullTenant(
 	}
 
 	err = r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		tenantID := uuid.New()
-
-		var retailModels []Model
-
-		if len(retails) != 0 {
-			ids, err := r.createRetailsList(tx, dataFromRetailData(retails, tenantID))
-			if err != nil {
-				return err
-			}
-
-			retailModels = make([]Model, 0, len(ids))
-
-			for _, id := range ids {
-				retailModels = append(retailModels, Model{
-					ID: id,
-				})
-			}
-		}
-
 		m := &TenantModel{
-			ID:      tenantID,
-			Name:    data.Name,
-			Users:   users,
-			Retails: retailModels,
+			ID:    uuid.New(),
+			Name:  data.Name,
+			Users: users,
 		}
 
 		err = tx.Create(&m).Error
@@ -126,6 +106,13 @@ func (r *Repository) CreateFullTenant(
 		}
 
 		id = m.ID
+
+		if len(retails) != 0 {
+			_, err := r.createRetailsList(tx, dataFromRetailData(retails, m.ID))
+			if err != nil {
+				return err
+			}
+		}
 
 		return nil
 	})
@@ -144,11 +131,6 @@ func (r *Repository) CreateRetail(
 	m, err := r.createRetail(r.db.WithContext(ctx), data)
 	if err != nil {
 		return uuid.UUID{}, err
-	}
-
-	err = r.db.WithContext(ctx).Create(m).Error
-	if err != nil {
-		return uuid.UUID{}, fmt.Errorf("could not insert model: %w", err)
 	}
 
 	return m.ID, nil
@@ -209,7 +191,12 @@ func (r *Repository) createRetail(tx *gorm.DB, data *Data) (*Model, error) {
 		}
 	}
 
-	err := r.createPlace(tx, m.ID, storage, "/")
+	err := tx.Create(&m).Error
+	if err != nil {
+		return nil, fmt.Errorf("could not create retail: %w", err)
+	}
+
+	err = r.createPlace(tx, m.ID, storage, "/")
 	if err != nil {
 		return nil, fmt.Errorf("could not create retail: %w", err)
 	}
@@ -219,7 +206,7 @@ func (r *Repository) createRetail(tx *gorm.DB, data *Data) (*Model, error) {
 
 // createRetailsList creates a list of retails and returns its IDs.
 func (r *Repository) createRetailsList(tx *gorm.DB, data []Data) ([]uuid.UUID, error) {
-	models := make([]*Model, 0, len(data))
+	ids := make([]uuid.UUID, 0, len(data))
 
 	for _, retailData := range data {
 		m, err := r.createRetail(tx, &retailData)
@@ -227,17 +214,6 @@ func (r *Repository) createRetailsList(tx *gorm.DB, data []Data) ([]uuid.UUID, e
 			return nil, err
 		}
 
-		models = append(models, m)
-	}
-
-	err := tx.Create(models).Error
-	if err != nil {
-		return nil, fmt.Errorf("could not create retail: %w", err)
-	}
-
-	ids := make([]uuid.UUID, 0, len(models))
-
-	for _, m := range models {
 		ids = append(ids, m.ID)
 	}
 
