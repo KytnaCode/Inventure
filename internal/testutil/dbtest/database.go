@@ -5,7 +5,9 @@ import (
 	"testing"
 
 	"github.com/testcontainers/testcontainers-go"
+	"github.com/testcontainers/testcontainers-go/modules/mysql"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
+	mysqldriver "gorm.io/driver/mysql"
 	postgresdriver "gorm.io/driver/postgres"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -15,6 +17,7 @@ import (
 const (
 	TypeSqlite   = "sqlite"
 	TypePostgres = "postgres"
+	TypeMySQL    = "mysql"
 )
 
 // dbFn creates a new [gorm.DB].
@@ -78,6 +81,44 @@ func NewPostgresDB(t *testing.T, migrationsFn MigrationsFn) *gorm.DB {
 	return db
 }
 
+// NewMySQLDB spawns a Postgres test instance and connects to it.
+func NewMySQLDB(t *testing.T, migrationsFn MigrationsFn) *gorm.DB {
+	t.Helper()
+
+	mysqlC, err := mysql.Run(
+		t.Context(),
+		"mysql:9.7.2",
+		mysql.WithDefaultCredentials(),
+	)
+
+	t.Cleanup(func() {
+		if err := testcontainers.TerminateContainer(mysqlC); err != nil {
+			t.Errorf("failed to terminate mysql container: %s", err)
+		}
+	})
+
+	if err != nil {
+		t.Fatalf("could not create mysql container: %v", err)
+	}
+
+	cns, err := mysqlC.ConnectionString(t.Context(), "parseTime=true")
+	if err != nil {
+		t.Fatalf("could not determine mysql connection string: %v", err)
+	}
+
+	db, err := gorm.Open(mysqldriver.Open(cns))
+	if err != nil {
+		t.Fatalf("could not connect to mysql test instance: %v", err)
+	}
+
+	err = migrationsFn(db)
+	if err != nil {
+		t.Fatalf("failed to run migrations for %v: %v", TypeMySQL, err)
+	}
+
+	return db
+}
+
 // RunWithDatabases runs the given runFn with all supported databases.
 func RunWithDatabases(
 	t *testing.T,
@@ -89,6 +130,7 @@ func RunWithDatabases(
 	data := map[string]dbFn{
 		TypeSqlite:   NewSqliteDB,
 		TypePostgres: NewPostgresDB,
+		TypeMySQL:    NewMySQLDB,
 	}
 
 	for name, newDB := range data {

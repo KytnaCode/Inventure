@@ -14,7 +14,7 @@ import (
 // ItemModel is the database representation of an item type.
 type ItemModel struct {
 	// ID is item's unique ID.
-	ID uuid.UUID `gorm:"primaryKey"`
+	ID uuid.UUID `gorm:"size:36;primaryKey"`
 
 	// Name is item's name.
 	Name string
@@ -46,18 +46,18 @@ func NewItemModel(data *ItemData) *ItemModel {
 // StockItemModel is the database representation of a stock item.
 type StockItemModel struct {
 	// ID is the stock item's unique ID.
-	ID uuid.UUID
+	ID uuid.UUID `gorm:"size:36;primaryKey"`
 
 	// Data is the data of the item stored.
 	Data ItemModel
 
-	DataID uuid.UUID
+	DataID uuid.UUID `gorm:"size:36"`
 
 	// Stock is the amount of items stored in this location.
 	Stock int
 
 	// PlaceID is the ID of the place where these items are stored.
-	PlaceID uuid.UUID
+	PlaceID uuid.UUID `gorm:"size:36"`
 }
 
 // TableName returns stock items table name. Implements [gorm/schema.Tabler].
@@ -100,7 +100,7 @@ func (m *ItemModel) ToDomain() *Item {
 // Model is the database representation of a retail.
 type Model struct {
 	// ID is the retail's unique ID.
-	ID uuid.UUID `gorm:"primaryKey"`
+	ID uuid.UUID `gorm:"size:36;primaryKey"`
 
 	// Name is the retail's display name.
 	Name string `validate:"required,resourcename"`
@@ -112,7 +112,7 @@ type Model struct {
 	Storage PlaceModel `gorm:"foreignKey:RetailID"`
 
 	// TenantID is the ID of the tenant the retails belongs to, a retail MUST be part of a tenant.
-	TenantID uuid.UUID
+	TenantID uuid.UUID `gorm:"size:36"`
 }
 
 // TableName returns retail's table name. Implements [gorm/schema.Tabler].
@@ -122,14 +122,14 @@ func (m *Model) TableName() string {
 
 // PlaceModel is the database representation of a [Place].
 type PlaceModel struct {
-	ID uuid.UUID `gorm:"primaryKey"`
+	ID uuid.UUID `gorm:"size:36;primaryKey"`
 
-	Path string `gorm:"uniqueIndex:idx_name"`
+	Path string `gorm:"size:512;uniqueIndex:idx_name"`
 
 	// Name is place's name, must be unique between siblings.
-	Name string `gorm:"uniqueIndex:idx_name"`
+	Name string `gorm:"size:128;uniqueIndex:idx_name"`
 
-	RetailID uuid.UUID `gorm:"uniqueIndex:idx_name"`
+	RetailID uuid.UUID `gorm:"size:36;uniqueIndex:idx_name"`
 
 	// Items are the items that reside directly on this place.
 	Items []StockItemModel `gorm:"foreignKey:PlaceID"`
@@ -220,7 +220,7 @@ type TenantModel struct {
 	gorm.Model
 
 	// ID is tenant's unique ID.
-	ID uuid.UUID
+	ID uuid.UUID `gorm:"size:36;primaryKey"`
 
 	// Name is tenant's display name.
 	Name string

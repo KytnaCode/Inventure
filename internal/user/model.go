@@ -11,10 +11,10 @@ type Model struct {
 	gorm.Model
 
 	// ID is the user's unique ID.
-	ID uuid.UUID `gorm:"primaryKey"`
+	ID uuid.UUID `gorm:"size:36;primaryKey"`
 
 	// Name is user display name.
-	Name string `validate:"required,min=3,max=80,resourcename"`
+	Name string `gorm:"size:80" validate:"required,min=3,max=80,resourcename"`
 
 	// Email is user's unique email.
 	Email string `validate:"required,email"`
