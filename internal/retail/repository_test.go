@@ -3,6 +3,7 @@ package retail_test
 import (
 	"cmp"
 	"maps"
+	"reflect"
 	"slices"
 	"testing"
 
@@ -506,5 +507,76 @@ func TestRepository_CreateRetailShouldCreateRetail(t *testing.T) {
 
 	if data.Storage.Name != storage.Name {
 		t.Errorf("expected place name to be '%v': got '%v'", storage.Name, data.Name)
+	}
+}
+
+func TestRepository_CreateItemShouldReturnItemDomainObject(t *testing.T) {
+	t.Parallel()
+
+	repo, _ := newRepo(t)
+
+	data := &retail.ItemData{
+		Name: "Item 1",
+		Desc: "My description",
+		Attrs: map[string]any{
+			"my-custom":         "attribute",
+			"best-prime-number": 57,
+		},
+	}
+
+	item, err := repo.CreateItemType(t.Context(), data)
+	if err != nil {
+		t.Fatalf("expected a nil error: %v", err)
+	}
+
+	if item.Name != data.Name {
+		t.Errorf("expected name to be '%v': got '%v'", data.Name, item.Name)
+	}
+
+	if item.Desc != data.Desc {
+		t.Errorf("expected description to be '%v': got '%v'", data.Desc, item.Desc)
+	}
+
+	if !reflect.DeepEqual(item.Attrs, data.Attrs) {
+		t.Errorf("expected attributes to be '%v': got '%v'", data.Attrs, item.Attrs)
+	}
+}
+
+func TestRepository_CreateItemShouldCreateItem(t *testing.T) {
+	t.Parallel()
+
+	repo, db := newRepo(t)
+
+	data := &retail.ItemData{
+		Name: "Item 1",
+		Desc: "My description",
+		Attrs: map[string]any{
+			"my-custom":         "attribute",
+			"best-prime-number": "57",
+		},
+	}
+
+	domain, err := repo.CreateItemType(t.Context(), data)
+	if err != nil {
+		t.Fatalf("expected a nil error: %v", err)
+	}
+
+	var got retail.ItemModel
+
+	err = db.WithContext(t.Context()).Where("id = ?", domain.ID).Take(&got).Error
+	if err != nil {
+		t.Fatalf("could not get inserted item type: %v", err)
+	}
+
+	if got.Name != data.Name {
+		t.Errorf("expected name to be '%v': got '%v'", data.Name, got.Name)
+	}
+
+	if got.Desc != data.Desc {
+		t.Errorf("expected description to be '%v': got '%v'", data.Desc, got.Desc)
+	}
+
+	if !maps.Equal(got.Attrs, data.Attrs) {
+		t.Errorf("expected attributes to be '%v': got '%v'", data.Attrs, got.Attrs)
 	}
 }
