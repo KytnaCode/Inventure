@@ -24,9 +24,6 @@ type ItemModel struct {
 
 	// Attrs a per-item custom attributes.
 	Attrs datatypes.JSONMap
-
-	// PlaceID is the ID of the place the item is residing on.
-	PlaceID uuid.UUID
 }
 
 // TableName returns item's table name. Implements [gorm/schema.Tabler].
@@ -93,11 +90,10 @@ func NewStockItemModel(data *StockItemData) *StockItemModel {
 // ToDomain converts an [ItemModel] into an [Item].
 func (m *ItemModel) ToDomain() *Item {
 	return &Item{
-		ID:      m.ID,
-		Name:    m.Name,
-		Desc:    m.Desc,
-		Attrs:   m.Attrs,
-		PlaceID: m.PlaceID.String(),
+		ID:    m.ID,
+		Name:  m.Name,
+		Desc:  m.Desc,
+		Attrs: m.Attrs,
 	}
 }
 

@@ -27,14 +27,8 @@ type Item struct {
 	// Desc is the item description. May be empty.
 	Desc string `validate:"max=65536,alphanumspace"`
 
-	// Stock how many units remains
-	Stock int `validate:"gte=0"`
-
 	// Attrs contains custom per-item attributes.
 	Attrs map[string]any `validate:"dive,keys,required,max=80,alphanumspace,endKeys"`
-
-	// PlaceID is the ID of the place where the item resides.
-	PlaceID string `validate:"required"`
 }
 
 // StockItem represents the placement of an item type in a storage place.
