@@ -10,16 +10,13 @@ import (
 	"github.com/google/uuid"
 	"github.com/kytnacode/inventure/internal/retail"
 	"github.com/kytnacode/inventure/internal/testutil"
+	"github.com/kytnacode/inventure/internal/testutil/dbtest"
 	"github.com/kytnacode/inventure/internal/user"
-	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/modules/postgres"
-	postgresdriver "gorm.io/driver/postgres"
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
-func runMigrations(t *testing.T, dbTyp string, db *gorm.DB) {
-	err := db.AutoMigrate(
+func runMigrations(db *gorm.DB) error {
+	return db.AutoMigrate(
 		retail.TenantModel{},
 		user.Model{},
 		retail.Model{},
@@ -27,84 +24,10 @@ func runMigrations(t *testing.T, dbTyp string, db *gorm.DB) {
 		retail.ItemModel{},
 		retail.StockItemModel{},
 	)
-	if err != nil {
-		t.Fatalf("could not run migrations on test database for '%v': %v", dbTyp, err)
-	}
 }
 
-func newSqliteRepo(t *testing.T) (*retail.Repository, *gorm.DB) {
-	t.Helper()
-
-	db, err := gorm.Open(sqlite.Open(":memory:"))
-	if err != nil {
-		t.Fatalf("could not open test database: %v", err)
-	}
-
-	runMigrations(t, "sqlite", db)
-
-	repo := retail.NewRepository(db)
-
-	return repo, db
-}
-
-func newPostgresRepo(t *testing.T) (*retail.Repository, *gorm.DB) {
-	t.Helper()
-
-	postgresC, err := postgres.Run(
-		t.Context(),
-		"postgres:18-alpine",
-		postgres.BasicWaitStrategies(),
-	)
-
-	t.Cleanup(func() {
-		if err := testcontainers.TerminateContainer(postgresC); err != nil {
-			t.Errorf("failed to terminate postgres container: %s", err)
-		}
-	})
-
-	if err != nil {
-		t.Fatalf("could not create postgres container: %v", err)
-	}
-
-	cns, err := postgresC.ConnectionString(t.Context())
-	if err != nil {
-		t.Fatalf("could not determine postgres connection string: %v", err)
-	}
-
-	db, err := gorm.Open(postgresdriver.Open(cns))
-	if err != nil {
-		t.Fatalf("could not connect to postgres test instance: %v", err)
-	}
-
-	runMigrations(t, "postgres", db)
-
-	repo := retail.NewRepository(db)
-
-	return repo, db
-}
-
-type repoTestData struct {
-	Name      string
-	newRepoFn func(t *testing.T) (*retail.Repository, *gorm.DB)
-}
-
-func runWithDatabases(t *testing.T, testFn func(t *testing.T, d *repoTestData)) {
-	data := []repoTestData{
-		{
-			Name:      "sqlite",
-			newRepoFn: newSqliteRepo,
-		},
-		{
-			Name:      "postgres",
-			newRepoFn: newPostgresRepo,
-		},
-	}
-
-	for _, d := range data {
-		t.Run(d.Name, func(t *testing.T) {
-			testFn(t, &d)
-		})
-	}
+func newRepo(db *gorm.DB) *retail.Repository {
+	return retail.NewRepository(db)
 }
 
 func compareUsers(t *testing.T, got, existingUsers []user.Model) {
@@ -245,10 +168,10 @@ func TestRepository_CreateFullTenantShouldCreateAnEmptyTenant(t *testing.T) {
 
 	t.Parallel()
 
-	runWithDatabases(t, func(t *testing.T, d *repoTestData) {
+	dbtest.RunWithDatabases(t, runMigrations, func(t *testing.T, db *gorm.DB) {
 		t.Parallel()
 
-		repo, db := d.newRepoFn(t)
+		repo := newRepo(db)
 
 		data := retail.TenantData{
 			Name: "tenant name",
@@ -285,8 +208,8 @@ func TestRepository_CreateFullTenantShouldCreateAnTenantWithExistingUsers(t *tes
 
 	t.Parallel()
 
-	runWithDatabases(t, func(t *testing.T, d *repoTestData) {
-		repo, db := d.newRepoFn(t)
+	dbtest.RunWithDatabases(t, runMigrations, func(t *testing.T, db *gorm.DB) {
+		repo := newRepo(db)
 
 		data := &retail.TenantData{
 			Name: "tenant name",
@@ -349,8 +272,8 @@ func TestRepository_CreateFullTenantShouldCreateAFullFeaturedTenant(t *testing.T
 
 	t.Parallel()
 
-	runWithDatabases(t, func(t *testing.T, d *repoTestData) {
-		repo, db := d.newRepoFn(t)
+	dbtest.RunWithDatabases(t, runMigrations, func(t *testing.T, db *gorm.DB) {
+		repo := newRepo(db)
 
 		data := &retail.TenantData{
 			Name: "tenant name",
@@ -468,8 +391,8 @@ func TestRepository_CreateFullTenantShouldCreateATenantWithRetails(t *testing.T)
 
 	t.Parallel()
 
-	runWithDatabases(t, func(t *testing.T, d *repoTestData) {
-		repo, db := d.newRepoFn(t)
+	dbtest.RunWithDatabases(t, runMigrations, func(t *testing.T, db *gorm.DB) {
+		repo := newRepo(db)
 
 		data := &retail.TenantData{
 			Name: "tenant name",
@@ -580,8 +503,8 @@ func TestRepository_CreateRetailShouldCreateRetail(t *testing.T) {
 
 	t.Parallel()
 
-	runWithDatabases(t, func(t *testing.T, d *repoTestData) {
-		repo, db := d.newRepoFn(t)
+	dbtest.RunWithDatabases(t, runMigrations, func(t *testing.T, db *gorm.DB) {
+		repo := newRepo(db)
 
 		id, err := repo.CreateFullTenant(t.Context(), &retail.TenantData{
 			Name: "tenant",
@@ -634,8 +557,8 @@ func TestRepository_CreateItemShouldReturnItemDomainObject(t *testing.T) {
 
 	t.Parallel()
 
-	runWithDatabases(t, func(t *testing.T, d *repoTestData) {
-		repo, _ := d.newRepoFn(t)
+	dbtest.RunWithDatabases(t, runMigrations, func(t *testing.T, db *gorm.DB) {
+		repo := newRepo(db)
 
 		data := &retail.ItemData{
 			Name: "Item 1",
@@ -670,8 +593,8 @@ func TestRepository_CreateItemShouldCreateItem(t *testing.T) {
 
 	t.Parallel()
 
-	runWithDatabases(t, func(t *testing.T, d *repoTestData) {
-		repo, db := d.newRepoFn(t)
+	dbtest.RunWithDatabases(t, runMigrations, func(t *testing.T, db *gorm.DB) {
+		repo := newRepo(db)
 
 		data := &retail.ItemData{
 			Name: "Item 1",
