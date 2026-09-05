@@ -9,20 +9,17 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/kytnacode/inventure/internal/retail"
+	"github.com/kytnacode/inventure/internal/testutil"
 	"github.com/kytnacode/inventure/internal/user"
+	"github.com/testcontainers/testcontainers-go"
+	"github.com/testcontainers/testcontainers-go/modules/postgres"
+	postgresdriver "gorm.io/driver/postgres"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
-func newRepo(t *testing.T) (*retail.Repository, *gorm.DB) {
-	t.Helper()
-
-	db, err := gorm.Open(sqlite.Open(":memory:"))
-	if err != nil {
-		t.Fatalf("could not open test database: %v", err)
-	}
-
-	err = db.AutoMigrate(
+func runMigrations(t *testing.T, dbTyp string, db *gorm.DB) {
+	err := db.AutoMigrate(
 		retail.TenantModel{},
 		user.Model{},
 		retail.Model{},
@@ -31,12 +28,83 @@ func newRepo(t *testing.T) (*retail.Repository, *gorm.DB) {
 		retail.StockItemModel{},
 	)
 	if err != nil {
-		t.Fatalf("could not run migrations on test database: %v", err)
+		t.Fatalf("could not run migrations on test database for '%v': %v", dbTyp, err)
 	}
+}
+
+func newSqliteRepo(t *testing.T) (*retail.Repository, *gorm.DB) {
+	t.Helper()
+
+	db, err := gorm.Open(sqlite.Open(":memory:"))
+	if err != nil {
+		t.Fatalf("could not open test database: %v", err)
+	}
+
+	runMigrations(t, "sqlite", db)
 
 	repo := retail.NewRepository(db)
 
 	return repo, db
+}
+
+func newPostgresRepo(t *testing.T) (*retail.Repository, *gorm.DB) {
+	t.Helper()
+
+	postgresC, err := postgres.Run(
+		t.Context(),
+		"postgres:18-alpine",
+		postgres.BasicWaitStrategies(),
+	)
+
+	t.Cleanup(func() {
+		if err := testcontainers.TerminateContainer(postgresC); err != nil {
+			t.Errorf("failed to terminate postgres container: %s", err)
+		}
+	})
+
+	if err != nil {
+		t.Fatalf("could not create postgres container: %v", err)
+	}
+
+	cns, err := postgresC.ConnectionString(t.Context())
+	if err != nil {
+		t.Fatalf("could not determine postgres connection string: %v", err)
+	}
+
+	db, err := gorm.Open(postgresdriver.Open(cns))
+	if err != nil {
+		t.Fatalf("could not connect to postgres test instance: %v", err)
+	}
+
+	runMigrations(t, "postgres", db)
+
+	repo := retail.NewRepository(db)
+
+	return repo, db
+}
+
+type repoTestData struct {
+	Name      string
+	newRepoFn func(t *testing.T) (*retail.Repository, *gorm.DB)
+}
+
+func runWithDatabases(t *testing.T, testFn func(t *testing.T, d *repoTestData)) {
+	data := []repoTestData{
+		{
+			Name:      "sqlite",
+			newRepoFn: newSqliteRepo,
+		},
+		{
+			Name:      "postgres",
+			newRepoFn: newPostgresRepo,
+		},
+	}
+
+	for _, d := range data {
+		t.Run(d.Name, func(t *testing.T) {
+			testFn(t, &d)
+		})
+	}
 }
 
 func compareUsers(t *testing.T, got, existingUsers []user.Model) {
@@ -173,439 +241,469 @@ func comparePlace(t *testing.T, data *retail.PlaceData, domain *retail.Place) {
 }
 
 func TestRepository_CreateFullTenantShouldCreateAnEmptyTenant(t *testing.T) {
+	testutil.Integration(t)
+
 	t.Parallel()
 
-	repo, db := newRepo(t)
+	runWithDatabases(t, func(t *testing.T, d *repoTestData) {
+		t.Parallel()
 
-	data := retail.TenantData{
-		Name: "tenant name",
-	}
+		repo, db := d.newRepoFn(t)
 
-	id, err := repo.CreateFullTenant(t.Context(), &data, nil, nil)
-	if err != nil {
-		t.Fatalf("expected a nil error: %v", err)
-	}
+		data := retail.TenantData{
+			Name: "tenant name",
+		}
 
-	var got retail.TenantModel
+		id, err := repo.CreateFullTenant(t.Context(), &data, nil, nil)
+		if err != nil {
+			t.Fatalf("expected a nil error: %v", err)
+		}
 
-	err = db.WithContext(t.Context()).
-		Where("id = ?", id).
-		Preload("Retails").
-		Preload("Users").
-		Take(&got).Error
-	if err != nil {
-		t.Fatalf("could not get inserted tenant: %v", err)
-	}
+		var got retail.TenantModel
 
-	if got.Name != data.Name {
-		t.Errorf("expected tenant's name to be '%v': got '%v'", data.Name, got.Name)
-	}
+		err = db.WithContext(t.Context()).
+			Where("id = ?", id).
+			Preload("Retails").
+			Preload("Users").
+			Take(&got).Error
+		if err != nil {
+			t.Fatalf("could not get inserted tenant: %v", err)
+		}
 
-	compareRetails(t, got.Retails, []retail.Data{})
+		if got.Name != data.Name {
+			t.Errorf("expected tenant's name to be '%v': got '%v'", data.Name, got.Name)
+		}
 
-	compareUsers(t, got.Users, []user.Model{})
+		compareRetails(t, got.Retails, []retail.Data{})
+
+		compareUsers(t, got.Users, []user.Model{})
+	})
 }
 
 func TestRepository_CreateFullTenantShouldCreateAnTenantWithExistingUsers(t *testing.T) {
+	testutil.Integration(t)
+
 	t.Parallel()
 
-	repo, db := newRepo(t)
+	runWithDatabases(t, func(t *testing.T, d *repoTestData) {
+		repo, db := d.newRepoFn(t)
 
-	data := &retail.TenantData{
-		Name: "tenant name",
-	}
+		data := &retail.TenantData{
+			Name: "tenant name",
+		}
 
-	user1 := user.Model{
-		ID:           uuid.New(),
-		Name:         "Luz Noceda",
-		Email:        "luz.noceda@gmail.com",
-		PasswordHash: nil,
-	}
+		user1 := user.Model{
+			ID:           uuid.New(),
+			Name:         "Luz Noceda",
+			Email:        "luz.noceda@gmail.com",
+			PasswordHash: nil,
+		}
 
-	user2 := user.Model{
-		ID:           uuid.New(),
-		Name:         "Amity Blight",
-		Email:        "amity.blight@penstagram.com",
-		PasswordHash: nil,
-	}
+		user2 := user.Model{
+			ID:           uuid.New(),
+			Name:         "Amity Blight",
+			Email:        "amity.blight@penstagram.com",
+			PasswordHash: nil,
+		}
 
-	existingUsers := []user.Model{user1, user2}
+		existingUsers := []user.Model{user1, user2}
 
-	err := db.Create(existingUsers).Error
-	if err != nil {
-		t.Fatalf("could not create test users: %v", err)
-	}
+		err := db.Create(existingUsers).Error
+		if err != nil {
+			t.Fatalf("could not create test users: %v", err)
+		}
 
-	userIDs := []uuid.UUID{
-		user1.ID,
-		user2.ID,
-	}
+		userIDs := []uuid.UUID{
+			user1.ID,
+			user2.ID,
+		}
 
-	id, err := repo.CreateFullTenant(t.Context(), data, nil, userIDs)
-	if err != nil {
-		t.Fatalf("expected a nil error: %v", err)
-	}
+		id, err := repo.CreateFullTenant(t.Context(), data, nil, userIDs)
+		if err != nil {
+			t.Fatalf("expected a nil error: %v", err)
+		}
 
-	var got retail.TenantModel
+		var got retail.TenantModel
 
-	err = db.WithContext(t.Context()).
-		Where("id = ?", id).
-		Preload("Retails").
-		Preload("Users").
-		Take(&got).Error
-	if err != nil {
-		t.Fatalf("could not get inserted tenant: %v", err)
-	}
+		err = db.WithContext(t.Context()).
+			Where("id = ?", id).
+			Preload("Retails").
+			Preload("Users").
+			Take(&got).Error
+		if err != nil {
+			t.Fatalf("could not get inserted tenant: %v", err)
+		}
 
-	if got.Name != data.Name {
-		t.Errorf("expected tenant's name to be '%v': got '%v'", data.Name, got.Name)
-	}
+		if got.Name != data.Name {
+			t.Errorf("expected tenant's name to be '%v': got '%v'", data.Name, got.Name)
+		}
 
-	compareRetails(t, got.Retails, []retail.Data{})
+		compareRetails(t, got.Retails, []retail.Data{})
 
-	compareUsers(t, got.Users, existingUsers)
+		compareUsers(t, got.Users, existingUsers)
+	})
 }
 
 func TestRepository_CreateFullTenantShouldCreateAFullFeaturedTenant(t *testing.T) {
+	testutil.Integration(t)
+
 	t.Parallel()
 
-	repo, db := newRepo(t)
+	runWithDatabases(t, func(t *testing.T, d *repoTestData) {
+		repo, db := d.newRepoFn(t)
 
-	data := &retail.TenantData{
-		Name: "tenant name",
-	}
+		data := &retail.TenantData{
+			Name: "tenant name",
+		}
 
-	user1 := user.Model{
-		ID:           uuid.New(),
-		Name:         "Luz Noceda",
-		Email:        "luz.noceda@gmail.com",
-		PasswordHash: nil,
-	}
+		user1 := user.Model{
+			ID:           uuid.New(),
+			Name:         "Luz Noceda",
+			Email:        "luz.noceda@gmail.com",
+			PasswordHash: nil,
+		}
 
-	user2 := user.Model{
-		ID:           uuid.New(),
-		Name:         "Amity Blight",
-		Email:        "amity.blight@penstagram.com",
-		PasswordHash: nil,
-	}
+		user2 := user.Model{
+			ID:           uuid.New(),
+			Name:         "Amity Blight",
+			Email:        "amity.blight@penstagram.com",
+			PasswordHash: nil,
+		}
 
-	existingUsers := []user.Model{user1, user2}
+		existingUsers := []user.Model{user1, user2}
 
-	itemType1, err := repo.CreateItemType(t.Context(), &retail.ItemData{
-		Name: "item 1",
-	})
-	if err != nil {
-		t.Fatalf("could not create item type: %v", err)
-	}
+		itemType1, err := repo.CreateItemType(t.Context(), &retail.ItemData{
+			Name: "item 1",
+		})
+		if err != nil {
+			t.Fatalf("could not create item type: %v", err)
+		}
 
-	itemType2, err := repo.CreateItemType(t.Context(), &retail.ItemData{
-		Name: "item 2",
-	})
-	if err != nil {
-		t.Fatalf("could not create item type: %v", err)
-	}
+		itemType2, err := repo.CreateItemType(t.Context(), &retail.ItemData{
+			Name: "item 2",
+		})
+		if err != nil {
+			t.Fatalf("could not create item type: %v", err)
+		}
 
-	retails := []retail.Data{
-		{
-			Name: "retail 1",
-			Storage: &retail.PlaceData{
-				Name: "Storage",
-				Items: []retail.StockItemData{
-					{
-						Data: itemType1,
-					},
-					{
-						Data: itemType2,
-					},
-				},
-			},
-		},
-		{
-			Name: "retail 2",
-			Storage: &retail.PlaceData{
-				Name: "Storage",
-				Items: []retail.StockItemData{
-					{
-						Data: itemType1,
-					},
-				},
-				Children: []retail.PlaceData{
-					{
-						Name: "place 1",
-						Items: []retail.StockItemData{
-							{
-								Data: itemType1,
-							},
+		retails := []retail.Data{
+			{
+				Name: "retail 1",
+				Storage: &retail.PlaceData{
+					Name: "Storage",
+					Items: []retail.StockItemData{
+						{
+							Data: itemType1,
+						},
+						{
+							Data: itemType2,
 						},
 					},
-					{
-						Name: "place 2",
+				},
+			},
+			{
+				Name: "retail 2",
+				Storage: &retail.PlaceData{
+					Name: "Storage",
+					Items: []retail.StockItemData{
+						{
+							Data: itemType1,
+						},
+					},
+					Children: []retail.PlaceData{
+						{
+							Name: "place 1",
+							Items: []retail.StockItemData{
+								{
+									Data: itemType1,
+								},
+							},
+						},
+						{
+							Name: "place 2",
+						},
 					},
 				},
 			},
-		},
-	}
+		}
 
-	err = db.Create(existingUsers).Error
-	if err != nil {
-		t.Fatalf("could not create test users: %v", err)
-	}
+		err = db.Create(existingUsers).Error
+		if err != nil {
+			t.Fatalf("could not create test users: %v", err)
+		}
 
-	userIDs := []uuid.UUID{
-		user1.ID,
-		user2.ID,
-	}
+		userIDs := []uuid.UUID{
+			user1.ID,
+			user2.ID,
+		}
 
-	id, err := repo.CreateFullTenant(t.Context(), data, retails, userIDs)
-	if err != nil {
-		t.Fatalf("expected a nil error: %v", err)
-	}
+		id, err := repo.CreateFullTenant(t.Context(), data, retails, userIDs)
+		if err != nil {
+			t.Fatalf("expected a nil error: %v", err)
+		}
 
-	var got retail.TenantModel
+		var got retail.TenantModel
 
-	err = db.WithContext(t.Context()).
-		Where("id = ?", id).
-		Preload("Retails").
-		Preload("Users").
-		Take(&got).Error
-	if err != nil {
-		t.Fatalf("could not get inserted tenant: %v", err)
-	}
+		err = db.WithContext(t.Context()).
+			Where("id = ?", id).
+			Preload("Retails").
+			Preload("Users").
+			Take(&got).Error
+		if err != nil {
+			t.Fatalf("could not get inserted tenant: %v", err)
+		}
 
-	if got.Name != data.Name {
-		t.Errorf("expected tenant's name to be '%v': got '%v'", data.Name, got.Name)
-	}
+		if got.Name != data.Name {
+			t.Errorf("expected tenant's name to be '%v': got '%v'", data.Name, got.Name)
+		}
 
-	compareRetails(t, got.Retails, retails)
+		compareRetails(t, got.Retails, retails)
 
-	compareUsers(t, got.Users, existingUsers)
+		compareUsers(t, got.Users, existingUsers)
+	})
 }
 
 func TestRepository_CreateFullTenantShouldCreateATenantWithRetails(t *testing.T) {
+	testutil.Integration(t)
+
 	t.Parallel()
 
-	repo, db := newRepo(t)
+	runWithDatabases(t, func(t *testing.T, d *repoTestData) {
+		repo, db := d.newRepoFn(t)
 
-	data := &retail.TenantData{
-		Name: "tenant name",
-	}
-
-	itemType1, err := repo.CreateItemType(t.Context(), &retail.ItemData{
-		Name: "item 1",
-	})
-	if err != nil {
-		t.Fatalf("could not create item type: %v", err)
-	}
-
-	itemType2, err := repo.CreateItemType(t.Context(), &retail.ItemData{
-		Name: "item 2",
-	})
-	if err != nil {
-		t.Fatalf("could not create item type: %v", err)
-	}
-
-	retails := []retail.Data{
-		{
-			Name: "retail 1",
-			Storage: &retail.PlaceData{
-				Name: "Storage",
-				Items: []retail.StockItemData{
-					{
-						Data: itemType1,
-					},
-					{
-						Data: itemType2,
-					},
-				},
-			},
-		},
-		{
-			Name: "retail 2",
-			Storage: &retail.PlaceData{
-				Name: "Storage",
-				Items: []retail.StockItemData{
-					{
-						Data: itemType1,
-					},
-				},
-				Children: []retail.PlaceData{
-					{
-						Name: "place 1",
-						Items: []retail.StockItemData{
-							{
-								Data: itemType2,
-							},
-						},
-					},
-					{
-						Name: "place 2",
-					},
-				},
-			},
-		},
-	}
-
-	id, err := repo.CreateFullTenant(t.Context(), data, retails, nil)
-	if err != nil {
-		t.Fatalf("expected a nil error: %v", err)
-	}
-
-	var got retail.TenantModel
-
-	err = db.WithContext(t.Context()).
-		Where("id = ?", id).
-		Preload("Retails").
-		Preload("Users").
-		Take(&got).Error
-	if err != nil {
-		t.Fatalf("could not get inserted tenant: %v", err)
-	}
-
-	if got.Name != data.Name {
-		t.Errorf("expected tenant's name to be '%v': got '%v'", data.Name, got.Name)
-	}
-
-	slices.SortFunc(retails, func(a, b retail.Data) int {
-		return cmp.Compare(a.Name, b.Name)
-	})
-
-	slices.SortFunc(got.Retails, func(a, b retail.Model) int {
-		return cmp.Compare(a.Name, b.Name)
-	})
-
-	for i, r := range got.Retails {
-		domain, err := repo.GetRetailStorage(db, r.ID)
-		if err != nil {
-			t.Fatalf("could not get retail places: %v", err)
+		data := &retail.TenantData{
+			Name: "tenant name",
 		}
 
-		expected := retails[i]
+		itemType1, err := repo.CreateItemType(t.Context(), &retail.ItemData{
+			Name: "item 1",
+		})
+		if err != nil {
+			t.Fatalf("could not create item type: %v", err)
+		}
 
-		comparePlace(t, expected.Storage, domain)
-	}
+		itemType2, err := repo.CreateItemType(t.Context(), &retail.ItemData{
+			Name: "item 2",
+		})
+		if err != nil {
+			t.Fatalf("could not create item type: %v", err)
+		}
 
-	compareRetails(t, got.Retails, retails)
+		retails := []retail.Data{
+			{
+				Name: "retail 1",
+				Storage: &retail.PlaceData{
+					Name: "Storage",
+					Items: []retail.StockItemData{
+						{
+							Data: itemType1,
+						},
+						{
+							Data: itemType2,
+						},
+					},
+				},
+			},
+			{
+				Name: "retail 2",
+				Storage: &retail.PlaceData{
+					Name: "Storage",
+					Items: []retail.StockItemData{
+						{
+							Data: itemType1,
+						},
+					},
+					Children: []retail.PlaceData{
+						{
+							Name: "place 1",
+							Items: []retail.StockItemData{
+								{
+									Data: itemType2,
+								},
+							},
+						},
+						{
+							Name: "place 2",
+						},
+					},
+				},
+			},
+		}
 
-	compareUsers(t, got.Users, []user.Model{})
+		id, err := repo.CreateFullTenant(t.Context(), data, retails, nil)
+		if err != nil {
+			t.Fatalf("expected a nil error: %v", err)
+		}
+
+		var got retail.TenantModel
+
+		err = db.WithContext(t.Context()).
+			Where("id = ?", id).
+			Preload("Retails").
+			Preload("Users").
+			Take(&got).Error
+		if err != nil {
+			t.Fatalf("could not get inserted tenant: %v", err)
+		}
+
+		if got.Name != data.Name {
+			t.Errorf("expected tenant's name to be '%v': got '%v'", data.Name, got.Name)
+		}
+
+		slices.SortFunc(retails, func(a, b retail.Data) int {
+			return cmp.Compare(a.Name, b.Name)
+		})
+
+		slices.SortFunc(got.Retails, func(a, b retail.Model) int {
+			return cmp.Compare(a.Name, b.Name)
+		})
+
+		for i, r := range got.Retails {
+			domain, err := repo.GetRetailStorage(db, r.ID)
+			if err != nil {
+				t.Fatalf("could not get retail places: %v", err)
+			}
+
+			expected := retails[i]
+
+			comparePlace(t, expected.Storage, domain)
+		}
+
+		compareRetails(t, got.Retails, retails)
+
+		compareUsers(t, got.Users, []user.Model{})
+	})
 }
 
 func TestRepository_CreateRetailShouldCreateRetail(t *testing.T) {
+	testutil.Integration(t)
+
 	t.Parallel()
 
-	repo, db := newRepo(t)
+	runWithDatabases(t, func(t *testing.T, d *repoTestData) {
+		repo, db := d.newRepoFn(t)
 
-	id, err := repo.CreateFullTenant(t.Context(), &retail.TenantData{
-		Name: "tenant",
-	}, []retail.Data{}, []uuid.UUID{})
-	if err != nil {
-		t.Fatalf("could not create test tenant: %v", err)
-	}
+		id, err := repo.CreateFullTenant(t.Context(), &retail.TenantData{
+			Name: "tenant",
+		}, []retail.Data{}, []uuid.UUID{})
+		if err != nil {
+			t.Fatalf("could not create test tenant: %v", err)
+		}
 
-	data := &retail.Data{
-		Name: "My retail",
-		Storage: &retail.PlaceData{
-			Name: "Storage",
-		},
-		TenantID: id,
-	}
+		data := &retail.Data{
+			Name: "My retail",
+			Storage: &retail.PlaceData{
+				Name: "Storage",
+			},
+			TenantID: id,
+		}
 
-	retailID, err := repo.CreateRetail(t.Context(), data)
-	if err != nil {
-		t.Fatalf("could not create retail: %v", err)
-	}
+		retailID, err := repo.CreateRetail(t.Context(), data)
+		if err != nil {
+			t.Fatalf("could not create retail: %v", err)
+		}
 
-	var got retail.Model
+		var got retail.Model
 
-	err = db.WithContext(t.Context()).Where("id = ?", retailID).Take(&got).Error
-	if err != nil {
-		t.Fatalf("could not get inserted user: %v", err)
-	}
+		err = db.WithContext(t.Context()).Where("id = ?", retailID).Take(&got).Error
+		if err != nil {
+			t.Fatalf("could not get inserted user: %v", err)
+		}
 
-	if got.Name != data.Name {
-		t.Errorf("expected retail name to be '%v': got '%v'", data.Name, got.Name)
-	}
+		if got.Name != data.Name {
+			t.Errorf("expected retail name to be '%v': got '%v'", data.Name, got.Name)
+		}
 
-	if got.TenantID.String() != data.TenantID.String() {
-		t.Errorf("expected retail's tenant ID to be '%v': got '%v'", data.TenantID, got.TenantID)
-	}
+		if got.TenantID.String() != data.TenantID.String() {
+			t.Errorf("expected retail's tenant ID to be '%v': got '%v'", data.TenantID, got.TenantID)
+		}
 
-	storage, err := repo.GetRetailStorage(db, retailID)
-	if err != nil {
-		t.Errorf("could not get retail storage: %v", err)
-	}
+		storage, err := repo.GetRetailStorage(db, retailID)
+		if err != nil {
+			t.Errorf("could not get retail storage: %v", err)
+		}
 
-	if data.Storage.Name != storage.Name {
-		t.Errorf("expected place name to be '%v': got '%v'", storage.Name, data.Name)
-	}
+		if data.Storage.Name != storage.Name {
+			t.Errorf("expected place name to be '%v': got '%v'", storage.Name, data.Name)
+		}
+	})
 }
 
 func TestRepository_CreateItemShouldReturnItemDomainObject(t *testing.T) {
+	testutil.Integration(t)
+
 	t.Parallel()
 
-	repo, _ := newRepo(t)
+	runWithDatabases(t, func(t *testing.T, d *repoTestData) {
+		repo, _ := d.newRepoFn(t)
 
-	data := &retail.ItemData{
-		Name: "Item 1",
-		Desc: "My description",
-		Attrs: map[string]any{
-			"my-custom":         "attribute",
-			"best-prime-number": 57,
-		},
-	}
+		data := &retail.ItemData{
+			Name: "Item 1",
+			Desc: "My description",
+			Attrs: map[string]any{
+				"my-custom":         "attribute",
+				"best-prime-number": 57,
+			},
+		}
 
-	item, err := repo.CreateItemType(t.Context(), data)
-	if err != nil {
-		t.Fatalf("expected a nil error: %v", err)
-	}
+		item, err := repo.CreateItemType(t.Context(), data)
+		if err != nil {
+			t.Fatalf("expected a nil error: %v", err)
+		}
 
-	if item.Name != data.Name {
-		t.Errorf("expected name to be '%v': got '%v'", data.Name, item.Name)
-	}
+		if item.Name != data.Name {
+			t.Errorf("expected name to be '%v': got '%v'", data.Name, item.Name)
+		}
 
-	if item.Desc != data.Desc {
-		t.Errorf("expected description to be '%v': got '%v'", data.Desc, item.Desc)
-	}
+		if item.Desc != data.Desc {
+			t.Errorf("expected description to be '%v': got '%v'", data.Desc, item.Desc)
+		}
 
-	if !reflect.DeepEqual(item.Attrs, data.Attrs) {
-		t.Errorf("expected attributes to be '%v': got '%v'", data.Attrs, item.Attrs)
-	}
+		if !reflect.DeepEqual(item.Attrs, data.Attrs) {
+			t.Errorf("expected attributes to be '%v': got '%v'", data.Attrs, item.Attrs)
+		}
+	})
 }
 
 func TestRepository_CreateItemShouldCreateItem(t *testing.T) {
+	testutil.Integration(t)
+
 	t.Parallel()
 
-	repo, db := newRepo(t)
+	runWithDatabases(t, func(t *testing.T, d *repoTestData) {
+		repo, db := d.newRepoFn(t)
 
-	data := &retail.ItemData{
-		Name: "Item 1",
-		Desc: "My description",
-		Attrs: map[string]any{
-			"my-custom":         "attribute",
-			"best-prime-number": "57",
-		},
-	}
+		data := &retail.ItemData{
+			Name: "Item 1",
+			Desc: "My description",
+			Attrs: map[string]any{
+				"my-custom":         "attribute",
+				"best-prime-number": "57",
+			},
+		}
 
-	domain, err := repo.CreateItemType(t.Context(), data)
-	if err != nil {
-		t.Fatalf("expected a nil error: %v", err)
-	}
+		domain, err := repo.CreateItemType(t.Context(), data)
+		if err != nil {
+			t.Fatalf("expected a nil error: %v", err)
+		}
 
-	var got retail.ItemModel
+		var got retail.ItemModel
 
-	err = db.WithContext(t.Context()).Where("id = ?", domain.ID).Take(&got).Error
-	if err != nil {
-		t.Fatalf("could not get inserted item type: %v", err)
-	}
+		err = db.WithContext(t.Context()).Where("id = ?", domain.ID).Take(&got).Error
+		if err != nil {
+			t.Fatalf("could not get inserted item type: %v", err)
+		}
 
-	if got.Name != data.Name {
-		t.Errorf("expected name to be '%v': got '%v'", data.Name, got.Name)
-	}
+		if got.Name != data.Name {
+			t.Errorf("expected name to be '%v': got '%v'", data.Name, got.Name)
+		}
 
-	if got.Desc != data.Desc {
-		t.Errorf("expected description to be '%v': got '%v'", data.Desc, got.Desc)
-	}
+		if got.Desc != data.Desc {
+			t.Errorf("expected description to be '%v': got '%v'", data.Desc, got.Desc)
+		}
 
-	if !maps.Equal(got.Attrs, data.Attrs) {
-		t.Errorf("expected attributes to be '%v': got '%v'", data.Attrs, got.Attrs)
-	}
+		if !maps.Equal(got.Attrs, data.Attrs) {
+			t.Errorf("expected attributes to be '%v': got '%v'", data.Attrs, got.Attrs)
+		}
+	})
 }
