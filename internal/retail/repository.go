@@ -142,6 +142,23 @@ func (r *Repository) CreateRetail(
 	return m.ID, nil
 }
 
+// CreateItemType creates a new [Item].
+func (r *Repository) CreateItemType(ctx context.Context, data *ItemData) (*Item, error) {
+	m := &ItemModel{
+		ID:    uuid.New(),
+		Name:  data.Name,
+		Desc:  data.Desc,
+		Attrs: data.Attrs,
+	}
+
+	err := r.db.WithContext(ctx).Create(&m).Error
+	if err != nil {
+		return nil, fmt.Errorf("could not create item type: %w", err)
+	}
+
+	return m.ToDomain(), nil
+}
+
 func dataFromRetailData(retailData []Data, tenantID uuid.UUID) []Data {
 	data := make([]Data, 0, len(retailData))
 
