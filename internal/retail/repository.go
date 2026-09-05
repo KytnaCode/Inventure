@@ -36,7 +36,7 @@ type PlaceData struct {
 	Children []PlaceData
 
 	// Items are items directly contained in this place.
-	Items []ItemData
+	Items []StockItemData
 }
 
 // ItemData is the necessary data to create an item definition.
@@ -49,6 +49,18 @@ type ItemData struct {
 
 	// Attrs are optional per-item custom attributes.
 	Attrs map[string]any `validate:"dive,keys,required,min=1,max=80,endkeys"`
+}
+
+// StockItemData is the necessary data to create a new [StockItem].
+type StockItemData struct {
+	// Data is the definition data of the stored item.
+	Data *Item
+
+	// Stock is the amount of units stored in this place.
+	Stock int
+
+	// PlaceID is the place where these items are stored.
+	PlaceID uuid.UUID
 }
 
 var _ tenantRepository = &Repository{}
@@ -173,8 +185,8 @@ func dataFromRetailData(retailData []Data, tenantID uuid.UUID) []Data {
 	return data
 }
 
-func itemModelToDomain(models []ItemModel) []Item {
-	items := make([]Item, 0, len(models))
+func itemModelToDomain(models []StockItemModel) []StockItem {
+	items := make([]StockItem, 0, len(models))
 
 	for _, it := range models {
 		items = append(items, *it.ToDomain())
@@ -254,10 +266,10 @@ func (r *Repository) createPlace(
 		return fmt.Errorf("could not create place: %w", err)
 	}
 
-	items := make([]*ItemModel, 0, len(data.Items))
+	items := make([]*StockItemModel, 0, len(data.Items))
 
 	for _, itemData := range data.Items {
-		itemModel := NewItemModel(&itemData)
+		itemModel := NewStockItemModel(&itemData)
 
 		itemModel.PlaceID = m.ID
 
@@ -298,6 +310,7 @@ func (r *Repository) GetRetailPlaceByPath(
 	err := tx.Where("retail_id = ?", retailID).
 		Where("path LIKE ?", path+"%").
 		Preload("Items").
+		Preload("Items.Data").
 		Find(&places).Error
 	if err != nil {
 		return nil, fmt.Errorf("could not get retail places: %w", err)

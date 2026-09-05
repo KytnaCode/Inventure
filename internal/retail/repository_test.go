@@ -28,6 +28,7 @@ func newRepo(t *testing.T) (*retail.Repository, *gorm.DB) {
 		retail.Model{},
 		retail.PlaceModel{},
 		retail.ItemModel{},
+		retail.StockItemModel{},
 	)
 	if err != nil {
 		t.Fatalf("could not run migrations on test database: %v", err)
@@ -118,31 +119,31 @@ func comparePlace(t *testing.T, data *retail.PlaceData, domain *retail.Place) {
 
 	itemDataSlice := slices.SortedFunc(
 		slices.Values(data.Items),
-		func(a, b retail.ItemData) int {
-			return cmp.Compare(a.Name, b.Name)
+		func(a, b retail.StockItemData) int {
+			return cmp.Compare(a.Data.Name, b.Data.Name)
 		},
 	)
 
 	itemModelSlice := slices.SortedFunc(
 		slices.Values(domain.Items),
-		func(a, b retail.Item) int {
-			return cmp.Compare(a.Name, b.Name)
+		func(a, b retail.StockItem) int {
+			return cmp.Compare(a.Data.Name, b.Data.Name)
 		},
 	)
 
 	for i, itemData := range itemDataSlice {
 		itemModel := itemModelSlice[i]
 
-		if itemData.Name != itemModel.Name {
-			t.Errorf("expected item name to be '%v': got '%v'", itemData.Name, itemModel.Name)
+		if itemData.Data.Name != itemModel.Data.Name {
+			t.Errorf("expected item name to be '%v': got '%v'", itemData.Data.Name, itemModel.Data.Name)
 		}
 
-		if itemData.Desc != itemModel.Desc {
-			t.Errorf("expected item desc to be '%v': got '%v'", itemData.Desc, itemModel.Desc)
+		if itemData.Data.Desc != itemModel.Data.Desc {
+			t.Errorf("expected item desc to be '%v': got '%v'", itemData.Data.Desc, itemModel.Data.Desc)
 		}
 
-		if !maps.Equal(itemData.Attrs, itemModel.Attrs) {
-			t.Errorf("expected item attrs to be '%v': got '%v'", itemData.Attrs, itemModel.Attrs)
+		if !maps.Equal(itemData.Data.Attrs, itemModel.Data.Attrs) {
+			t.Errorf("expected item attrs to be '%v': got '%v'", itemData.Data.Attrs, itemModel.Data.Attrs)
 		}
 	}
 
@@ -290,17 +291,31 @@ func TestRepository_CreateFullTenantShouldCreateAFullFeaturedTenant(t *testing.T
 
 	existingUsers := []user.Model{user1, user2}
 
+	itemType1, err := repo.CreateItemType(t.Context(), &retail.ItemData{
+		Name: "item 1",
+	})
+	if err != nil {
+		t.Fatalf("could not create item type: %v", err)
+	}
+
+	itemType2, err := repo.CreateItemType(t.Context(), &retail.ItemData{
+		Name: "item 2",
+	})
+	if err != nil {
+		t.Fatalf("could not create item type: %v", err)
+	}
+
 	retails := []retail.Data{
 		{
 			Name: "retail 1",
 			Storage: &retail.PlaceData{
 				Name: "Storage",
-				Items: []retail.ItemData{
+				Items: []retail.StockItemData{
 					{
-						Name: "item 1",
+						Data: itemType1,
 					},
 					{
-						Name: "item 2",
+						Data: itemType2,
 					},
 				},
 			},
@@ -309,17 +324,17 @@ func TestRepository_CreateFullTenantShouldCreateAFullFeaturedTenant(t *testing.T
 			Name: "retail 2",
 			Storage: &retail.PlaceData{
 				Name: "Storage",
-				Items: []retail.ItemData{
+				Items: []retail.StockItemData{
 					{
-						Name: "item 3",
+						Data: itemType1,
 					},
 				},
 				Children: []retail.PlaceData{
 					{
 						Name: "place 1",
-						Items: []retail.ItemData{
+						Items: []retail.StockItemData{
 							{
-								Name: "item 4",
+								Data: itemType1,
 							},
 						},
 					},
@@ -331,7 +346,7 @@ func TestRepository_CreateFullTenantShouldCreateAFullFeaturedTenant(t *testing.T
 		},
 	}
 
-	err := db.Create(existingUsers).Error
+	err = db.Create(existingUsers).Error
 	if err != nil {
 		t.Fatalf("could not create test users: %v", err)
 	}
@@ -375,17 +390,31 @@ func TestRepository_CreateFullTenantShouldCreateATenantWithRetails(t *testing.T)
 		Name: "tenant name",
 	}
 
+	itemType1, err := repo.CreateItemType(t.Context(), &retail.ItemData{
+		Name: "item 1",
+	})
+	if err != nil {
+		t.Fatalf("could not create item type: %v", err)
+	}
+
+	itemType2, err := repo.CreateItemType(t.Context(), &retail.ItemData{
+		Name: "item 2",
+	})
+	if err != nil {
+		t.Fatalf("could not create item type: %v", err)
+	}
+
 	retails := []retail.Data{
 		{
 			Name: "retail 1",
 			Storage: &retail.PlaceData{
 				Name: "Storage",
-				Items: []retail.ItemData{
+				Items: []retail.StockItemData{
 					{
-						Name: "item 1",
+						Data: itemType1,
 					},
 					{
-						Name: "item 2",
+						Data: itemType2,
 					},
 				},
 			},
@@ -394,17 +423,17 @@ func TestRepository_CreateFullTenantShouldCreateATenantWithRetails(t *testing.T)
 			Name: "retail 2",
 			Storage: &retail.PlaceData{
 				Name: "Storage",
-				Items: []retail.ItemData{
+				Items: []retail.StockItemData{
 					{
-						Name: "item 3",
+						Data: itemType1,
 					},
 				},
 				Children: []retail.PlaceData{
 					{
 						Name: "place 1",
-						Items: []retail.ItemData{
+						Items: []retail.StockItemData{
 							{
-								Name: "item 4",
+								Data: itemType2,
 							},
 						},
 					},

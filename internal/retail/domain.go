@@ -19,7 +19,7 @@ const (
 // Item represents a retail's item.
 type Item struct {
 	// ID is the item's unique ID.
-	ID string
+	ID uuid.UUID
 
 	// Name is the item's name. Must not ever be empty.
 	Name string `validate:"required,max=80,alphanumspace"`
@@ -42,8 +42,8 @@ type StockItem struct {
 	// ID is item's unique ID.
 	ID uuid.UUID
 
-	// Typ is the item type, must point to an [Item].
-	Typ uuid.UUID
+	// Data is the item type, must point to an [Item].
+	Data Item
 
 	// Stock are the quantity of that item type in this storage place.
 	Stock int
@@ -84,19 +84,19 @@ type Place struct {
 
 	// Items are items directly stored in this places, items stored in inner places are not included,
 	// to get all items including the ones stored in children places use [Place.GetItems].
-	Items []Item
+	Items []StockItem
 }
 
 // GetItems returns all place items, including the ones in children places.
-func (p *Place) GetItems() []Item {
-	itemSlices := make([][]Item, 0, p.num())
+func (p *Place) GetItems() []StockItem {
+	itemSlices := make([][]StockItem, 0, p.num())
 
 	itemSlices = p.getItems(itemSlices)
 
 	return slices.Concat(itemSlices...)
 }
 
-func (p *Place) getItems(itemSlices [][]Item) [][]Item {
+func (p *Place) getItems(itemSlices [][]StockItem) [][]StockItem {
 	itemSlices = append(itemSlices, p.Items)
 
 	for _, child := range p.Children {
