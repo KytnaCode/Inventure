@@ -7,24 +7,17 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/kytnacode/inventure/internal/auth/rbac"
-	"gorm.io/driver/sqlite"
+	"github.com/kytnacode/inventure/internal/testutil"
+	"github.com/kytnacode/inventure/internal/testutil/dbtest"
 	"gorm.io/gorm"
 )
 
-func newRepo(t *testing.T) (*rbac.Repository, *gorm.DB) {
-	db, err := gorm.Open(sqlite.Open(":memory:"))
-	if err != nil {
-		t.Fatalf("could not open sqlite3 instance: %v", err)
-	}
+func runMigrations(db *gorm.DB) error {
+	return db.AutoMigrate(&rbac.RoleModel{}, &rbac.AccessModel{})
+}
 
-	err = db.AutoMigrate(&rbac.RoleModel{}, &rbac.AccessModel{})
-	if err != nil {
-		t.Fatalf("could not run test database migrations: %v", err)
-	}
-
-	repo := rbac.NewRepository(db)
-
-	return repo, db
+func newRepo(db *gorm.DB) *rbac.Repository {
+	return rbac.NewRepository(db)
 }
 
 func compareModelAndData(
@@ -124,262 +117,288 @@ func compareDomainAndData(
 }
 
 func TestRepository_CreateRoleShouldCreateRole(t *testing.T) {
+	testutil.Integration(t)
+
 	t.Parallel()
 
-	repo, db := newRepo(t)
+	dbtest.RunWithDatabases(t, runMigrations, func(t *testing.T, db *gorm.DB) {
+		t.Parallel()
 
-	res := rbac.NewResource("merchant", uuid.New(), nil)
+		repo := newRepo(db)
 
-	roleData := rbac.RoleData{
-		Name: "admin",
-		On:   res,
-	}
+		res := rbac.NewResource("merchant", uuid.New(), nil)
 
-	accesses := []rbac.AccessData{
-		{
-			Perms: []rbac.Perm{"user-read"},
-			On:    res,
-		},
-		{
-			Perms: []rbac.Perm{"item-read", "item-del", "item-add"},
-			On:    rbac.NewResource("place", uuid.New(), &res),
-		},
-	}
+		roleData := rbac.RoleData{
+			Name: "admin",
+			On:   res,
+		}
 
-	id, err := repo.CreateRole(t.Context(), &roleData, accesses...)
-	if err != nil {
-		t.Fatalf("could not create roles: %v", err)
-	}
+		accesses := []rbac.AccessData{
+			{
+				Perms: []rbac.Perm{"user-read"},
+				On:    res,
+			},
+			{
+				Perms: []rbac.Perm{"item-read", "item-del", "item-add"},
+				On:    rbac.NewResource("place", uuid.New(), &res),
+			},
+		}
 
-	var got rbac.RoleModel
+		id, err := repo.CreateRole(t.Context(), &roleData, accesses...)
+		if err != nil {
+			t.Fatalf("could not create roles: %v", err)
+		}
 
-	err = db.Where("id = ?", id).
-		Preload("Accesses").
-		Take(&got).Error
-	if err != nil {
-		t.Fatalf("could not get role from database: %v", err)
-	}
+		var got rbac.RoleModel
 
-	compareModelAndData(t, &got, &roleData, accesses)
+		err = db.Where("id = ?", id).
+			Preload("Accesses").
+			Take(&got).Error
+		if err != nil {
+			t.Fatalf("could not get role from database: %v", err)
+		}
+
+		compareModelAndData(t, &got, &roleData, accesses)
+	})
 }
 
 func TestRepository_CreateRoleShouldAppendToExistingRole(t *testing.T) {
+	testutil.Integration(t)
+
 	t.Parallel()
 
-	repo, db := newRepo(t)
+	dbtest.RunWithDatabases(t, runMigrations, func(t *testing.T, db *gorm.DB) {
+		t.Parallel()
 
-	res := rbac.NewResource("merchant", uuid.New(), nil)
+		repo := newRepo(db)
 
-	subRes := rbac.NewResource("place", uuid.New(), &res)
+		res := rbac.NewResource("merchant", uuid.New(), nil)
 
-	roleData := &rbac.RoleData{
-		Name: "admin",
-		On:   res,
-	}
+		subRes := rbac.NewResource("place", uuid.New(), &res)
 
-	baseAccesses := []rbac.AccessData{
-		{
-			On:    res,
-			Perms: []rbac.Perm{"user-add"},
-		},
-	}
+		roleData := &rbac.RoleData{
+			Name: "admin",
+			On:   res,
+		}
 
-	newAccesses := []rbac.AccessData{
-		{
-			On:    res,
-			Perms: []rbac.Perm{"user-del"},
-		},
-		{
-			On:    subRes,
-			Perms: []rbac.Perm{"item-read"},
-		},
-	}
+		baseAccesses := []rbac.AccessData{
+			{
+				On:    res,
+				Perms: []rbac.Perm{"user-add"},
+			},
+		}
 
-	expectedAccesses := []rbac.AccessData{
-		{
-			On:    res,
-			Perms: []rbac.Perm{"user-add", "user-del"},
-		},
-		{
-			On:    subRes,
-			Perms: []rbac.Perm{"item-read"},
-		},
-	}
+		newAccesses := []rbac.AccessData{
+			{
+				On:    res,
+				Perms: []rbac.Perm{"user-del"},
+			},
+			{
+				On:    subRes,
+				Perms: []rbac.Perm{"item-read"},
+			},
+		}
 
-	_, err := repo.CreateRole(t.Context(), roleData, baseAccesses...)
-	if err != nil {
-		t.Fatalf("could not create role: %v", err)
-	}
+		expectedAccesses := []rbac.AccessData{
+			{
+				On:    res,
+				Perms: []rbac.Perm{"user-add", "user-del"},
+			},
+			{
+				On:    subRes,
+				Perms: []rbac.Perm{"item-read"},
+			},
+		}
 
-	id, err := repo.CreateRole(t.Context(), roleData, newAccesses...)
-	if err != nil {
-		t.Fatalf("could not append to existing role: %v", err)
-	}
+		_, err := repo.CreateRole(t.Context(), roleData, baseAccesses...)
+		if err != nil {
+			t.Fatalf("could not create role: %v", err)
+		}
 
-	var got rbac.RoleModel
+		id, err := repo.CreateRole(t.Context(), roleData, newAccesses...)
+		if err != nil {
+			t.Fatalf("could not append to existing role: %v", err)
+		}
 
-	err = db.Where("id = ?", id).
-		Preload("Accesses").
-		Take(&got).Error
-	if err != nil {
-		t.Fatalf("could not get inserted role: %v", err)
-	}
+		var got rbac.RoleModel
 
-	compareModelAndData(t, &got, roleData, expectedAccesses)
+		err = db.Where("id = ?", id).
+			Preload("Accesses").
+			Take(&got).Error
+		if err != nil {
+			t.Fatalf("could not get inserted role: %v", err)
+		}
+
+		compareModelAndData(t, &got, roleData, expectedAccesses)
+	})
 }
 
 func TestRepository_GetRolesShouldReturnAllRoles(t *testing.T) {
+	testutil.Integration(t)
+
 	t.Parallel()
 
-	repo, _ := newRepo(t)
+	dbtest.RunWithDatabases(t, runMigrations, func(t *testing.T, db *gorm.DB) {
+		repo := newRepo(db)
 
-	res := rbac.NewResource("merchant", uuid.New(), nil)
+		res := rbac.NewResource("merchant", uuid.New(), nil)
 
-	firstRole := &rbac.RoleData{
-		Name: "admin",
-		On:   res,
-	}
+		firstRole := &rbac.RoleData{
+			Name: "admin",
+			On:   res,
+		}
 
-	secondRole := &rbac.RoleData{
-		Name: "moderator",
-		On:   res,
-	}
+		secondRole := &rbac.RoleData{
+			Name: "moderator",
+			On:   res,
+		}
 
-	accesses := map[string][]rbac.AccessData{
-		firstRole.Name: {
-			{
-				On:    res,
-				Perms: []rbac.Perm{"user-add", "user-read", "user-del"},
+		accesses := map[string][]rbac.AccessData{
+			firstRole.Name: {
+				{
+					On:    res,
+					Perms: []rbac.Perm{"user-add", "user-read", "user-del"},
+				},
 			},
-		},
-		secondRole.Name: {
-			{
-				On:    res,
-				Perms: []rbac.Perm{"user-add", "user-read"},
+			secondRole.Name: {
+				{
+					On:    res,
+					Perms: []rbac.Perm{"user-add", "user-read"},
+				},
 			},
-		},
-	}
+		}
 
-	firstID, err := repo.CreateRole(t.Context(), firstRole, accesses[firstRole.Name]...)
-	if err != nil {
-		t.Fatalf("could not create role: %v", err)
-	}
+		firstID, err := repo.CreateRole(t.Context(), firstRole, accesses[firstRole.Name]...)
+		if err != nil {
+			t.Fatalf("could not create role: %v", err)
+		}
 
-	secondID, err := repo.CreateRole(t.Context(), secondRole, accesses[secondRole.Name]...)
-	if err != nil {
-		t.Fatalf("could not append to existing role: %v", err)
-	}
+		secondID, err := repo.CreateRole(t.Context(), secondRole, accesses[secondRole.Name]...)
+		if err != nil {
+			t.Fatalf("could not append to existing role: %v", err)
+		}
 
-	gotRoles, err := repo.GetRoles(t.Context(), firstID, secondID)
-	if err != nil {
-		t.Fatalf("expected a nil error: %v", err)
-	}
+		gotRoles, err := repo.GetRoles(t.Context(), firstID, secondID)
+		if err != nil {
+			t.Fatalf("expected a nil error: %v", err)
+		}
 
-	slices.SortFunc(gotRoles, func(a, b rbac.Role) int {
-		return cmp.Compare(a.Name, b.Name)
+		slices.SortFunc(gotRoles, func(a, b rbac.Role) int {
+			return cmp.Compare(a.Name, b.Name)
+		})
+
+		expectedRoles := []*rbac.RoleData{firstRole, secondRole}
+
+		slices.SortFunc(expectedRoles, func(a, b *rbac.RoleData) int {
+			return cmp.Compare(a.Name, b.Name)
+		})
+
+		for i, got := range gotRoles {
+			expected := expectedRoles[i]
+
+			compareDomainAndData(t, &got, expected, accesses[expected.Name])
+		}
 	})
-
-	expectedRoles := []*rbac.RoleData{firstRole, secondRole}
-
-	slices.SortFunc(expectedRoles, func(a, b *rbac.RoleData) int {
-		return cmp.Compare(a.Name, b.Name)
-	})
-
-	for i, got := range gotRoles {
-		expected := expectedRoles[i]
-
-		compareDomainAndData(t, &got, expected, accesses[expected.Name])
-	}
 }
 
 func TestRepository_GetRolesShouldReturnOnlyExistingRoles(t *testing.T) {
+	testutil.Integration(t)
+
 	t.Parallel()
 
-	repo, _ := newRepo(t)
+	dbtest.RunWithDatabases(t, runMigrations, func(t *testing.T, db *gorm.DB) {
+		t.Parallel()
 
-	res := rbac.NewResource("merchant", uuid.New(), nil)
+		repo := newRepo(db)
 
-	firstRole := &rbac.RoleData{
-		Name: "admin",
-		On:   res,
-	}
+		res := rbac.NewResource("merchant", uuid.New(), nil)
 
-	secondRole := &rbac.RoleData{
-		Name: "moderator",
-		On:   res,
-	}
+		firstRole := &rbac.RoleData{
+			Name: "admin",
+			On:   res,
+		}
 
-	accesses := map[string][]rbac.AccessData{
-		firstRole.Name: {
-			{
-				On:    res,
-				Perms: []rbac.Perm{"user-add", "user-read", "user-del"},
+		secondRole := &rbac.RoleData{
+			Name: "moderator",
+			On:   res,
+		}
+
+		accesses := map[string][]rbac.AccessData{
+			firstRole.Name: {
+				{
+					On:    res,
+					Perms: []rbac.Perm{"user-add", "user-read", "user-del"},
+				},
 			},
-		},
-		secondRole.Name: {
-			{
-				On:    res,
-				Perms: []rbac.Perm{"user-add", "user-read"},
+			secondRole.Name: {
+				{
+					On:    res,
+					Perms: []rbac.Perm{"user-add", "user-read"},
+				},
 			},
-		},
-	}
+		}
 
-	firstID, err := repo.CreateRole(t.Context(), firstRole, accesses[firstRole.Name]...)
-	if err != nil {
-		t.Fatalf("could not create role: %v", err)
-	}
+		firstID, err := repo.CreateRole(t.Context(), firstRole, accesses[firstRole.Name]...)
+		if err != nil {
+			t.Fatalf("could not create role: %v", err)
+		}
 
-	secondID, err := repo.CreateRole(t.Context(), secondRole, accesses[secondRole.Name]...)
-	if err != nil {
-		t.Fatalf("could not append to existing role: %v", err)
-	}
+		secondID, err := repo.CreateRole(t.Context(), secondRole, accesses[secondRole.Name]...)
+		if err != nil {
+			t.Fatalf("could not append to existing role: %v", err)
+		}
 
-	gotRoles, err := repo.GetRoles(
-		t.Context(),
-		uuid.New(), // Non-existing.
-		firstID,
-		uuid.New(), // Non-existing.
-		secondID,
-		uuid.New(), // Non-existing.
-		uuid.New(), // Non-existing.
-	)
-	if err != nil {
-		t.Fatalf("expected a nil error: %v", err)
-	}
+		gotRoles, err := repo.GetRoles(
+			t.Context(),
+			uuid.New(), // Non-existing.
+			firstID,
+			uuid.New(), // Non-existing.
+			secondID,
+			uuid.New(), // Non-existing.
+			uuid.New(), // Non-existing.
+		)
+		if err != nil {
+			t.Fatalf("expected a nil error: %v", err)
+		}
 
-	slices.SortFunc(gotRoles, func(a, b rbac.Role) int {
-		return cmp.Compare(a.Name, b.Name)
+		slices.SortFunc(gotRoles, func(a, b rbac.Role) int {
+			return cmp.Compare(a.Name, b.Name)
+		})
+
+		expectedRoles := []*rbac.RoleData{firstRole, secondRole}
+
+		slices.SortFunc(expectedRoles, func(a, b *rbac.RoleData) int {
+			return cmp.Compare(a.Name, b.Name)
+		})
+
+		for i, got := range gotRoles {
+			expected := expectedRoles[i]
+
+			compareDomainAndData(t, &got, expected, accesses[expected.Name])
+		}
 	})
-
-	expectedRoles := []*rbac.RoleData{firstRole, secondRole}
-
-	slices.SortFunc(expectedRoles, func(a, b *rbac.RoleData) int {
-		return cmp.Compare(a.Name, b.Name)
-	})
-
-	for i, got := range gotRoles {
-		expected := expectedRoles[i]
-
-		compareDomainAndData(t, &got, expected, accesses[expected.Name])
-	}
 }
 
 func TestRepository_GetRolesShouldReturnEmptyListWhenAllRolesNotExists(t *testing.T) {
 	t.Parallel()
 
-	repo, _ := newRepo(t)
+	dbtest.RunWithDatabases(t, runMigrations, func(t *testing.T, db *gorm.DB) {
+		t.Parallel()
 
-	gotRoles, err := repo.GetRoles(
-		t.Context(),
-		uuid.New(), // Non-existing.
-		uuid.New(), // Non-existing.
-		uuid.New(), // Non-existing.
-	)
-	if err != nil {
-		t.Fatalf("expected a nil error: %v", err)
-	}
+		repo := newRepo(db)
 
-	if len(gotRoles) != 0 {
-		t.Fatalf("expected roles to be an empty slice: got '%v'", gotRoles)
-	}
+		gotRoles, err := repo.GetRoles(
+			t.Context(),
+			uuid.New(), // Non-existing.
+			uuid.New(), // Non-existing.
+			uuid.New(), // Non-existing.
+		)
+		if err != nil {
+			t.Fatalf("expected a nil error: %v", err)
+		}
+
+		if len(gotRoles) != 0 {
+			t.Fatalf("expected roles to be an empty slice: got '%v'", gotRoles)
+		}
+	})
 }
