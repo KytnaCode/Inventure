@@ -380,6 +380,8 @@ func TestRepository_GetRolesShouldReturnOnlyExistingRoles(t *testing.T) {
 }
 
 func TestRepository_GetRolesShouldReturnEmptyListWhenAllRolesNotExists(t *testing.T) {
+	testutil.Integration(t)
+
 	t.Parallel()
 
 	dbtest.RunWithDatabases(t, runMigrations, func(t *testing.T, db *gorm.DB) {
