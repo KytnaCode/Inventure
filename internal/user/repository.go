@@ -50,7 +50,7 @@ func NewRepository(db *gorm.DB) *Repository {
 
 // CreateUser creates a new user with the given data. Returns [ErrDuplicatedUser] if the email
 // is already registered.
-func (r *Repository) CreateUser(ctx context.Context, data *Data) (id uuid.UUID, err error) {
+func (r *Repository) CreateUser(ctx context.Context, data *Data) (u *User, err error) {
 	m := &Model{
 		ID:           uuid.New(),
 		Name:         data.Name,
@@ -60,10 +60,10 @@ func (r *Repository) CreateUser(ctx context.Context, data *Data) (id uuid.UUID, 
 
 	err = r.db.WithContext(ctx).Create(m).Error
 	if err != nil {
-		return uuid.UUID{}, fmt.Errorf("could not create user: %w", err)
+		return nil, fmt.Errorf("could not create user: %w", err)
 	}
 
-	return m.ID, nil
+	return m.ToDomain(), nil
 }
 
 // UserByEmail returns a user by its email address, returns [ErrUserNotFound] if user with the

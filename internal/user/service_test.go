@@ -11,17 +11,16 @@ import (
 )
 
 type testRepository struct {
-	id  uuid.UUID
 	err error
 	u   *user.User
 }
 
-func (r *testRepository) CreateUser(_ context.Context, _ *user.Data) (uuid.UUID, error) {
+func (r *testRepository) CreateUser(_ context.Context, _ *user.Data) (*user.User, error) {
 	if r.err != nil {
-		return uuid.UUID{}, r.err
+		return nil, r.err
 	}
 
-	return r.id, nil
+	return r.u, nil
 }
 
 func (r *testRepository) UserByEmail(_ context.Context, _ string) (*user.User, error) {
@@ -46,7 +45,7 @@ func TestService_SignUpShouldReturnRepositoryError(t *testing.T) {
 	})
 
 	//nolint:gosec // fake credentials.
-	claims, err := s.SignUp(t.Context(), &user.SignUpData{
+	claims, _, err := s.SignUp(t.Context(), &user.SignUpData{
 		Name:         "username",
 		Email:        "user@email.com",
 		PasswordHash: "$argon2id$v=19$m=65536,t=3,p=4$0B7fXhc2KKWuhCsyyYqDGQ$3hiOlhK7ubLJPFFt5dLN8zq8PnZX+mHlogk/toFxKaQ",
@@ -81,7 +80,7 @@ func TestService_SignUpShouldReturnClaims(t *testing.T) {
 		u: u,
 	})
 
-	claims, err := s.SignUp(t.Context(), &user.SignUpData{
+	claims, _, err := s.SignUp(t.Context(), &user.SignUpData{
 		Name:         u.Name,
 		Email:        u.Email,
 		PasswordHash: *u.PasswordHash,

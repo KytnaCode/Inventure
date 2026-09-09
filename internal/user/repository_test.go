@@ -38,14 +38,14 @@ func TestRepositorySqlite_CreateUserShouldCreateUser(t *testing.T) {
 			),
 		}
 
-		id, err := repo.CreateUser(t.Context(), &data)
+		u, err := repo.CreateUser(t.Context(), &data)
 		if err != nil {
 			t.Fatalf("could not create user: %v", err)
 		}
 
 		var user user.Model
 
-		err = db.WithContext(t.Context()).Where("id = ?", id).Take(&user).Error
+		err = db.WithContext(t.Context()).Where("id = ?", u.ID).Take(&user).Error
 		if err != nil {
 			t.Fatalf("could not get created user: %v", err)
 		}
@@ -122,7 +122,7 @@ func TestRepositorySqlite_AssingRolesShouldAssingRoles(t *testing.T) {
 			t.Fatalf("could not create test role: %v", err)
 		}
 
-		id, err := repo.CreateUser(t.Context(), &user.Data{
+		u, err := repo.CreateUser(t.Context(), &user.Data{
 			Name:  "akko",
 			Email: "akko@lunanova.edu",
 			PasswordHash: new(
@@ -133,14 +133,14 @@ func TestRepositorySqlite_AssingRolesShouldAssingRoles(t *testing.T) {
 			t.Fatalf("could not create test user: %v", err)
 		}
 
-		err = repo.AssingRoles(t.Context(), id, roleID)
+		err = repo.AssingRoles(t.Context(), u.ID, roleID)
 		if err != nil {
 			t.Fatalf("could not assing roles: %v", err)
 		}
 
 		var got user.Model
 
-		err = db.WithContext(t.Context()).Where("id = ?", id).Preload("Roles").Take(&got).Error
+		err = db.WithContext(t.Context()).Where("id = ?", u.ID).Preload("Roles").Take(&got).Error
 		if err != nil {
 			t.Fatalf("could not get updated user: %v", err)
 		}

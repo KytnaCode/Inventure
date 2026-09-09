@@ -4,14 +4,13 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/google/uuid"
 	"github.com/kytnacode/inventure/passhash"
 )
 
 // userRepo is an abstraction over user repository.
 type userRepo interface {
 	// CreateUser creates a user with the given data a return its ID.
-	CreateUser(ctx context.Context, data *Data) (id uuid.UUID, err error)
+	CreateUser(ctx context.Context, data *Data) (user *User, err error)
 
 	// UserByEmail returns a user by its email, must return [ErrUserNotFound]
 	// if the user could not be found.
@@ -62,24 +61,28 @@ type SignInData struct {
 }
 
 // SignUp creates a new user with password based authentication.
-func (s *Service) SignUp(ctx context.Context, data *SignUpData) (userData *Claims, err error) {
+func (s *Service) SignUp(ctx context.Context, data *SignUpData) (
+	claims *Claims,
+	u *User,
+	err error,
+) {
 	m := &Data{
 		Name:         data.Name,
 		Email:        data.Email,
 		PasswordHash: &data.PasswordHash,
 	}
 
-	id, err := s.repo.CreateUser(ctx, m)
+	u, err = s.repo.CreateUser(ctx, m)
 	if err != nil {
-		return nil, fmt.Errorf("could not create user: %w", err)
+		return nil, nil, fmt.Errorf("could not create user: %w", err)
 	}
 
-	userData = &Claims{
-		ID:      id.String(),
+	claims = &Claims{
+		ID:      u.ID.String(),
 		RoleIDs: make([]string, 0),
 	}
 
-	return userData, nil
+	return claims, u, nil
 }
 
 // SignIn search for a user by the given data and verifies its credentials, if credentials
