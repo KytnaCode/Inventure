@@ -14,13 +14,11 @@ func TestBrokerShouldCallSubscriber(t *testing.T) {
 
 	var testEventTopic event.Topic = "test"
 
-	events := make(chan event.Event, 10)
-
 	expected := event.Event{
 		Topic: testEventTopic,
 	}
 
-	br := event.NewBroker(events)
+	br := event.NewBroker()
 
 	go br.Run(t.Context())
 
@@ -28,7 +26,7 @@ func TestBrokerShouldCallSubscriber(t *testing.T) {
 
 	time.Sleep(time.Millisecond * 10)
 
-	events <- expected
+	br.Publish(expected.Topic, expected.Payload)
 
 	select {
 	case <-t.Context().Done():
@@ -49,13 +47,11 @@ func TestBrokerShouldUnsuscribe(t *testing.T) {
 
 	var testEventTopic event.Topic = "test"
 
-	events := make(chan event.Event, 1)
-
 	expected := event.Event{
 		Topic: testEventTopic,
 	}
 
-	br := event.NewBroker(events)
+	br := event.NewBroker()
 
 	go br.Run(t.Context())
 
@@ -65,7 +61,7 @@ func TestBrokerShouldUnsuscribe(t *testing.T) {
 
 	br.Unsubscribe(expected.Topic, sub)
 
-	events <- expected
+	br.Publish(expected.Topic, expected.Payload)
 
 	time.Sleep(time.Millisecond * 10)
 
@@ -84,13 +80,11 @@ func TestBrokerShouldCallMultipleSubscribersConcurrently(t *testing.T) {
 
 	var testEventTopic event.Topic = "test"
 
-	events := make(chan event.Event, 10)
-
 	expected := event.Event{
 		Topic: testEventTopic,
 	}
 
-	br := event.NewBroker(events)
+	br := event.NewBroker()
 
 	subN := 10
 	pubN := 5
@@ -112,7 +106,7 @@ func TestBrokerShouldCallMultipleSubscribersConcurrently(t *testing.T) {
 				//nolint:gosec // cryptographically secure RNG is not needed.
 				time.Sleep(time.Duration(rand.Float64()) * time.Second / 8)
 
-				events <- expected
+				br.Publish(expected.Topic, expected.Payload)
 			}
 		}()
 	}
