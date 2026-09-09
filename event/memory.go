@@ -3,8 +3,12 @@ package event
 
 import (
 	"context"
+	"errors"
 	"fmt"
 )
+
+// ErrInvalidPayload is returned when events payload type is not as expected.
+var ErrInvalidPayload = errors.New("invalid payload")
 
 // Topic is the an event topic that publishers can send and subscribers expect.
 type Topic string
@@ -16,6 +20,19 @@ type Event struct {
 
 	// Payload contains event specific payload.
 	Payload any
+}
+
+// GetEventData extracts a typed value from event's payload. Returns [ErrInvalidPayload] if payload
+// is not of expected type.
+func GetEventData[T any](payload any) (T, error) {
+	v, ok := payload.(T)
+	if !ok {
+		var zero T
+
+		return zero, ErrInvalidPayload
+	}
+
+	return v, nil
 }
 
 type subscriber struct {
