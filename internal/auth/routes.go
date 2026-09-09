@@ -13,6 +13,7 @@ import (
 	"github.com/go-playground/validator/v10"
 	"github.com/kytnacode/inventure/api"
 	"github.com/kytnacode/inventure/api/csrf"
+	"github.com/kytnacode/inventure/event"
 	"github.com/kytnacode/inventure/internal/user"
 	"github.com/kytnacode/inventure/internal/web"
 	"github.com/kytnacode/inventure/logging"
@@ -50,6 +51,7 @@ type RoutesConfig struct {
 	RequestLimit          int
 	TimeWindow            time.Duration
 	Validator             *validator.Validate
+	Broker                *event.Broker
 }
 
 // Routes handle password based authentication routes.
@@ -112,10 +114,14 @@ func (ro *Routes) SignUp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	claims, _, ok := ro.signUpUser(r.Context(), w, model, hash)
+	claims, u, ok := ro.signUpUser(r.Context(), w, model, hash)
 	if !ok {
 		return
 	}
+
+	ro.conf.Broker.Publish(TopicUserCreated, EventUserCreated{
+		User: u,
+	})
 
 	ok = ro.destroyExistingSession(r.Context(), w)
 	if !ok {
