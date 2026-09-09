@@ -112,7 +112,7 @@ func (ro *Routes) SignUp(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userData, ok := ro.signUpUser(r.Context(), w, model, hash)
+	claims, _, ok := ro.signUpUser(r.Context(), w, model, hash)
 	if !ok {
 		return
 	}
@@ -123,8 +123,8 @@ func (ro *Routes) SignUp(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ro.conf.SessionManager.Put(r.Context(), KeySessionData, &Session{
-		ID:      userData.ID,
-		RoleIDs: userData.RoleIDs,
+		ID:      claims.ID,
+		RoleIDs: claims.RoleIDs,
 	})
 }
 
@@ -225,10 +225,10 @@ func (ro *Routes) signUpUser(
 	w http.ResponseWriter,
 	model *user.Model,
 	passHash string,
-) (userData *user.Claims, ok bool) {
+) (claims *user.Claims, u *user.User, ok bool) {
 	logger := logging.FromCtx(ctx)
 
-	userData, err := ro.conf.UserService.SignUp(ctx, &user.SignUpData{
+	claims, u, err := ro.conf.UserService.SignUp(ctx, &user.SignUpData{
 		Email:        model.Email,
 		Name:         model.Name,
 		PasswordHash: passHash,
@@ -243,10 +243,10 @@ func (ro *Routes) signUpUser(
 			logger.Error("could not write error response", logging.Error(err))
 		}
 
-		return nil, false
+		return nil, nil, false
 	}
 
-	return userData, true
+	return claims, u, true
 }
 
 func (ro *Routes) signInUser(
