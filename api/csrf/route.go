@@ -10,10 +10,8 @@ import (
 // header [HeaderCSRF].
 func HandleCSRF(m *scs.SessionManager) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !m.Exists(r.Context(), KeyCSRFToken) {
-			tok := InjectToken(m, r)
+		tok := InjectToken(m, r)
 
-			w.Header().Set(HeaderCSRF, tok)
-		}
+		w.Header().Set(HeaderCSRF, tok)
 	}
 }
