@@ -12,6 +12,7 @@ import (
 	"github.com/alexedwards/scs/v2/memstore"
 	"github.com/google/uuid"
 	"github.com/kytnacode/inventure/api"
+	"github.com/kytnacode/inventure/event"
 	"github.com/kytnacode/inventure/internal/auth"
 	"github.com/kytnacode/inventure/internal/testutil"
 	"github.com/kytnacode/inventure/internal/user"
@@ -26,6 +27,7 @@ func newRoutes(t *testing.T) (
 	*auth.Routes,
 	*gorm.DB,
 	*scs.SessionManager,
+	*event.Broker,
 ) {
 	t.Helper()
 
@@ -50,6 +52,8 @@ func newRoutes(t *testing.T) (
 
 	session := *sessionManager
 
+	br := event.NewBroker()
+
 	conf := &auth.RoutesConfig{
 		Validator:             v,
 		SessionManager:        sessionManager,
@@ -58,15 +62,16 @@ func newRoutes(t *testing.T) (
 		LoginAttemptLimit:     5,
 		LoginAttempTimeWindow: time.Minute,
 		UserService:           userService,
+		Broker:                br,
 	}
 
-	return auth.NewRoutes(conf), db, &session
+	return auth.NewRoutes(conf), db, &session, br
 }
 
 func TestRoutes_SignUpShouldStoreUser(t *testing.T) {
 	t.Parallel()
 
-	ro, db, sessionManager := newRoutes(t)
+	ro, db, sessionManager, _ := newRoutes(t)
 
 	data := auth.SignUpDto{
 		Name:     "my user name",
@@ -113,7 +118,7 @@ func TestRoutes_SignUpShouldValidateData(t *testing.T) {
 
 	w := httptest.NewRecorder()
 
-	ro, _, sessionManager := newRoutes(t)
+	ro, _, sessionManager, _ := newRoutes(t)
 
 	sessionManager.LoadAndSave(http.HandlerFunc(ro.SignUp)).ServeHTTP(w, req)
 
@@ -137,7 +142,7 @@ func TestRoutes_SignUpShouldValidateData(t *testing.T) {
 func TestRoutes_SignUpShouldStoreSessionData(t *testing.T) {
 	t.Parallel()
 
-	ro, _, sessionManager := newRoutes(t)
+	ro, _, sessionManager, _ := newRoutes(t)
 
 	body := testutil.EncodeBody(t, auth.SignUpDto{
 		Name:     "my valid user name",
@@ -178,6 +183,62 @@ func TestRoutes_SignUpShouldStoreSessionData(t *testing.T) {
 	}
 }
 
+func TestRoutes_SignUpShouldFireUserCreatedEvent(t *testing.T) {
+	t.Parallel()
+
+	const expectedTopic = auth.TopicUserCreated
+
+	ro, _, sessionManager, br := newRoutes(t)
+
+	go br.Run(t.Context())
+
+	time.Sleep(time.Millisecond * 50)
+
+	sub := br.Subscribe(auth.TopicUserCreated, 1)
+
+	dto := auth.SignUpDto{
+		Name:     "my valid user name",
+		Email:    "my-valid@email.com",
+		Password: "my-super-secret-and-valid-password",
+	}
+
+	body := testutil.EncodeBody(t, dto)
+
+	ctx := t.Context()
+
+	req := httptest.NewRequestWithContext(ctx, http.MethodPost, "/api/v1/auth/signup", body)
+
+	w := httptest.NewRecorder()
+
+	sessionManager.LoadAndSave(http.HandlerFunc(ro.SignUp)).ServeHTTP(w, req)
+
+	select {
+	case <-t.Context().Done():
+		t.Fatalf("context canceled: %v", t.Context().Err())
+	case ev, ok := <-sub:
+		if !ok {
+			t.Fatal("expected subscriber channel to be not closed")
+		}
+
+		if ev.Topic != expectedTopic {
+			t.Fatalf("expected event topic to be '%v': got '%v'", expectedTopic, ev.Topic)
+		}
+
+		data, err := auth.GetUserCreatedEvent(ev.Payload)
+		if err != nil {
+			t.Fatalf("could not get user data from event: %v", err)
+		}
+
+		if data.User.Name != dto.Name {
+			t.Errorf("expected user name to be '%v': got '%v'", dto.Name, data.User.Name)
+		}
+
+		if data.User.Email != dto.Email {
+			t.Errorf("expected user email to be '%v': got '%v'", dto.Email, data.User.Email)
+		}
+	}
+}
+
 func TestRoutes_SignInShouldReturnUserNotFound(t *testing.T) {
 	t.Parallel()
 
@@ -188,7 +249,7 @@ func TestRoutes_SignInShouldReturnUserNotFound(t *testing.T) {
 
 	expectedErrorCode := web.CodeUserNotFound
 
-	ro, _, sessionManager := newRoutes(t)
+	ro, _, sessionManager, _ := newRoutes(t)
 
 	body := testutil.EncodeBody(t, auth.SignInDto{
 		Email:    "non-existing@email.com",
@@ -240,7 +301,7 @@ func TestRoutes_SignInShouldReturnNoPasswordAuthError(t *testing.T) {
 
 	const userEmail = "my-real@email.com"
 
-	ro, db, sessionManager := newRoutes(t)
+	ro, db, sessionManager, _ := newRoutes(t)
 
 	u := &user.Model{
 		Email: userEmail,
@@ -306,7 +367,7 @@ func TestRoutes_SignInShouldReturnWrongCredentialsError(t *testing.T) {
 		userPassword = "iloveakko"
 	)
 
-	ro, db, sessionManager := newRoutes(t)
+	ro, db, sessionManager, _ := newRoutes(t)
 
 	otherPass := passhash.Hash([]byte("other-password"))
 
@@ -368,7 +429,7 @@ func TestRoutes_SignInShouldStoreUserInSession(t *testing.T) {
 		userPass  = "ilovemygf"
 	)
 
-	ro, db, sessionManager := newRoutes(t)
+	ro, db, sessionManager, _ := newRoutes(t)
 
 	passwordHash := passhash.Hash([]byte(userPass))
 
