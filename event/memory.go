@@ -7,6 +7,8 @@ import (
 	"fmt"
 )
 
+const eventChannelBuffer = 100
+
 // ErrInvalidPayload is returned when events payload type is not as expected.
 var ErrInvalidPayload = errors.New("invalid payload")
 
@@ -47,19 +49,28 @@ type unsubscribe struct {
 
 // Broker is an in-memory event broker.
 type Broker struct {
-	events      <-chan Event
+	events      chan Event
 	sub         chan subscriber
 	unsub       chan unsubscribe
 	subscribers map[Topic][]chan Event
 }
 
 // NewBroker creates a new in-memory event broker.
-func NewBroker(events <-chan Event) *Broker {
+func NewBroker() *Broker {
 	return &Broker{
 		subscribers: make(map[Topic][]chan Event, 10),
 		sub:         make(chan subscriber, 2),
 		unsub:       make(chan unsubscribe, 2),
-		events:      events,
+		events:      make(chan Event, eventChannelBuffer),
+	}
+}
+
+// Publish publishes an event of the given topic with the given payload, all topic subscribers will
+// receive the event, if payload is a pointer it SHOULD NOT be mutated as can cause data races.
+func (b *Broker) Publish(topic Topic, payload any) {
+	b.events <- Event{
+		Topic:   topic,
+		Payload: payload,
 	}
 }
 
