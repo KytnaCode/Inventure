@@ -23,7 +23,7 @@ type Model struct {
 	// users.
 	PasswordHash *string
 
-	Roles []rbac.RoleModel `gorm:"many2many:user_roles;"`
+	Roles []rbac.RoleModel `gorm:"many2many:user_roles;joinForeignKey:UserID;joinReferences:RoleID"`
 }
 
 // TableName implements [gorm/schema.Tabler].

@@ -106,7 +106,7 @@ type Model struct {
 	Name string `validate:"required,resourcename"`
 
 	// Users are the users the retail has.
-	Users []user.Model `gorm:"many2many:retail_users;" validate:"dive"`
+	Users []user.Model `gorm:"many2many:retail_users;joinForeignKey:RetailID;joinReferences:UserID" validate:"dive"`
 
 	// Storage is the root place where items are stored.
 	Storage PlaceModel `gorm:"foreignKey:RetailID"`
@@ -226,7 +226,7 @@ type TenantModel struct {
 	Name string
 
 	// Users are tenant-scoped users.
-	Users []user.Model `gorm:"many2many:tenant_users;"`
+	Users []user.Model `gorm:"many2many:tenant_users;joinForeignKey:TenantID;joinReferences:UserID"`
 
 	// Retails are tenant-owned retails.
 	Retails []Model `gorm:"foreignKey:TenantID"`
