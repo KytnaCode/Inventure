@@ -19,6 +19,10 @@
           # Go packages
           go
           golangci-lint
+
+          # NodeJS packages
+          pnpm
+          nodejs_24
         ];
 
         CGO_ENABLED = 1;
