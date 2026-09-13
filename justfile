@@ -17,14 +17,17 @@ fmt:
 
 lint:
   golangci-lint run ./...
+  cd frontend && pnpm run lint
 
 test TEST:
   go test -run ^Test{{TEST}} ./...
 
 test-all:
   go test -parallel 4 ./...
+  cd frontend && pnpm run test
 
 test-all-short:
   go test -short ./...
+  cd frontend && pnpm run test
 
 precommit: fmt lint test-all
