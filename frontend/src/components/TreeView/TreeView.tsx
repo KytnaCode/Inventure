@@ -52,7 +52,10 @@ function TreeNode({ tree, path, hide }: NodeProps) {
   };
 
   return (
-    tree && (
+    tree &&
+    (hide ? (
+      <TreeChildren tree={tree} path={path} />
+    ) : (
       <div>
         <Surface
           onClick={handleClick}
@@ -84,23 +87,25 @@ function TreeNode({ tree, path, hide }: NodeProps) {
                   tree.isOpen === false ? "-translate-y-full" : "translate-y-0",
                 )}
               >
-                <div>
-                  <div className="flex flex-col w-full">
-                    {tree.children.map((child) => (
-                      <TreeNode
-                        tree={child}
-                        key={child.id}
-                        path={[...path, tree]}
-                      />
-                    ))}
-                  </div>
-                </div>
+                <TreeChildren path={path} tree={tree} />
               </div>
             </div>
           </div>
         )}
       </div>
-    )
+    ))
+  );
+}
+
+function TreeChildren({ tree, path }: NodeProps) {
+  return (
+    <div>
+      <div className="flex flex-col w-full">
+        {tree!.children!.map((child) => (
+          <TreeNode tree={child} key={child.id} path={[...path, tree!]} />
+        ))}
+      </div>
+    </div>
   );
 }
 
