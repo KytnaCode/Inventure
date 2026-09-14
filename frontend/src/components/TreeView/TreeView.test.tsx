@@ -62,6 +62,14 @@ describe("TreeView", () => {
     await testElement(data);
   });
 
+  test("Should hide root element", async () => {
+    render(<TreeView tree={data} hideRoot />);
+
+    waitFor(async () =>
+      expect(await screen.findByText(data.value!.toString())).not.toBeVisible(),
+    );
+  });
+
   test("Should call onClick callback", async () => {
     const user = userEvent.setup();
 
