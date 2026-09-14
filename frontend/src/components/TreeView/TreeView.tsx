@@ -6,11 +6,13 @@ type Props = {
   tree?: TreeData;
   selectedID?: string;
   onClick?: (path: TreeData[]) => void;
+  hideRoot?: boolean;
 };
 
 type NodeProps = {
   tree?: TreeData;
   path: TreeData[];
+  hide?: boolean;
 };
 
 export type TreeData = {
@@ -27,7 +29,7 @@ type TreeContextData = {
 
 const TreeContext = createContext<TreeContextData>({});
 
-function TreeView({ tree, selectedID, onClick }: Props) {
+function TreeView({ tree, selectedID, onClick, hideRoot }: Props) {
   const data: TreeContextData = {
     selectedID,
     onClick,
@@ -35,12 +37,12 @@ function TreeView({ tree, selectedID, onClick }: Props) {
 
   return (
     <TreeContext.Provider value={data}>
-      <TreeNode tree={tree} path={[]} />
+      <TreeNode tree={tree} path={[]} hide={hideRoot} />
     </TreeContext.Provider>
   );
 }
 
-function TreeNode({ tree, path }: NodeProps) {
+function TreeNode({ tree, path, hide }: NodeProps) {
   const { selectedID, onClick } = use(TreeContext);
 
   const handleClick = () => {
@@ -55,6 +57,7 @@ function TreeNode({ tree, path }: NodeProps) {
         <Surface
           onClick={handleClick}
           className={cn(
+            hide && "hidden",
             "hover:bg-surface-secondary/40",
             "w-full p-1 rounded-lg",
             selectedID && tree?.id === selectedID
