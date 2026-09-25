@@ -22,7 +22,7 @@ function ImagePicker({ image, onImageChange }: Props) {
   const [uncontrolledImage, setUncontrolledImage] = useState<File | null>(null);
   const ref = useRef<HTMLInputElement>(null);
 
-  const imageFile = image ?? uncontrolledImage;
+  const imageFile = image !== undefined ? image : uncontrolledImage;
 
   const previewUrl = useMemo(
     () => (imageFile ? URL.createObjectURL(imageFile) : null),
